@@ -1,0 +1,2866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chispazo Bot — Sistema de Predicción</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --negro: #0a0a0a;
+    --dorado: #c9a84c;
+    --dorado-claro: #e8c96a;
+    --dorado-dim: #7a6230;
+    --rojo: #d64e3a;
+    --verde: #3aad6e;
+    --blanco: #f5f0e8;
+    --gris: #2a2a2a;
+    --gris-med: #444;
+    --gris-claro: #888;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--negro);
+    color: var(--blanco);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── FONDO ANIMADO ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(201,168,76,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(201,168,76,0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Cuadrícula de fondo */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+
+  .header-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: var(--dorado);
+    border: 1px solid var(--dorado-dim);
+    padding: 0.3rem 1rem;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    letter-spacing: 0.05em;
+    line-height: 0.9;
+    background: linear-gradient(135deg, var(--dorado-claro) 0%, var(--dorado) 50%, var(--dorado-dim) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+  }
+
+  .header-sub {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 1.1rem;
+    color: var(--gris-claro);
+    margin-top: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .sorteos-tiempo {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .tiempo-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--gris-claro);
+    text-transform: uppercase;
+  }
+
+  .tiempo-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--dorado);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  /* ── LAYOUT PRINCIPAL ── */
+  main {
+    position: relative;
+    z-index: 5;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* ── PANEL CONTROL ── */
+  .control-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 640px) { .control-panel { grid-template-columns: 1fr; } }
+
+  .panel-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(201,168,76,0.15);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .panel-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--dorado), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .panel-card:hover { border-color: rgba(201,168,76,0.4); }
+  .panel-card:hover::before { opacity: 1; }
+
+  .panel-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--dorado);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  /* ── SELECTOR DE PREDICCIONES ── */
+  .pred-selector {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .pred-btn {
+    flex: 1;
+    padding: 0.6rem 0;
+    background: transparent;
+    border: 1px solid var(--gris-med);
+    color: var(--gris-claro);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .pred-btn:hover { border-color: var(--dorado-dim); color: var(--dorado); }
+  .pred-btn.active {
+    background: var(--dorado);
+    border-color: var(--dorado);
+    color: var(--negro);
+  }
+
+  /* ── SELECTOR DE ESTRATEGIA ── */
+  .estrategia-tabs {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .etab {
+    flex: 1;
+    padding: 0.6rem;
+    background: transparent;
+    border: 1px solid var(--gris-med);
+    color: var(--gris-claro);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .etab:hover { border-color: var(--dorado-dim); color: var(--dorado); }
+  .etab.active { background: rgba(201,168,76,0.12); border-color: var(--dorado); color: var(--dorado); }
+
+  /* ── BTN PRINCIPAL ── */
+  .btn-generar {
+    width: 100%;
+    padding: 1.1rem 2rem;
+    background: var(--dorado);
+    border: none;
+    color: var(--negro);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    margin-bottom: 2rem;
+  }
+
+  .btn-generar::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateY(-50%);
+    transition: left 0.5s;
+  }
+
+  .btn-generar:hover { background: var(--dorado-claro); transform: translateY(-1px); }
+  .btn-generar:hover::after { left: 100%; }
+  .btn-generar:active { transform: translateY(0); }
+  .btn-generar:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── RECOMENDACIÓN DE SORTEO ── */
+  .sorteo-rec {
+    padding: 1.2rem 1.5rem;
+    border: 1px solid rgba(201,168,76,0.2);
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .rec-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.05em;
+  }
+
+  .rec-badge.verde { color: var(--verde); }
+  .rec-badge.rojo  { color: var(--rojo); }
+  .rec-badge.dorado { color: var(--dorado); }
+
+  .rec-info { flex: 1; }
+  .rec-titulo { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--blanco); }
+  .rec-sub { font-size: 0.65rem; color: var(--gris-claro); margin-top: 0.3rem; font-family: 'Crimson Pro', serif; font-style: italic; font-size: 0.85rem; }
+
+  .rec-detalles {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .rec-item {
+    text-align: center;
+  }
+
+  .rec-item-hora { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--gris-claro); text-transform: uppercase; }
+  .rec-item-score {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+
+  /* ── PREDICCIONES ── */
+  #resultados {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pred-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(201,168,76,0.12);
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1.5rem;
+    align-items: center;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pred-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .pred-card::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--dorado);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .pred-card:hover::after { opacity: 1; }
+  .pred-card:hover { border-color: rgba(201,168,76,0.3); }
+
+  .pred-num-orden {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: rgba(201,168,76,0.2);
+    line-height: 1;
+    min-width: 2.5rem;
+    text-align: center;
+  }
+
+  .pred-bolas {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .bola {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+    position: relative;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .bola:hover { transform: scale(1.1); }
+
+  .bola-normal {
+    background: radial-gradient(circle at 35% 35%, #3a3a3a, #1a1a1a);
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--blanco);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.5);
+  }
+
+  .bola-caliente {
+    background: radial-gradient(circle at 35% 35%, #d64e3a, #8a1f12);
+    border: 1px solid #d64e3a;
+    color: white;
+    box-shadow: 0 0 12px rgba(214,78,58,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+
+  .bola-vencida {
+    background: radial-gradient(circle at 35% 35%, #c9a84c, #7a6230);
+    border: 1px solid var(--dorado);
+    color: var(--negro);
+    box-shadow: 0 0 12px rgba(201,168,76,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+
+  .bola-fria {
+    background: radial-gradient(circle at 35% 35%, #3a6ea0, #1a3a5e);
+    border: 1px solid #4a8ec9;
+    color: white;
+    box-shadow: 0 0 12px rgba(74,142,201,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+
+  /* Múltiple — bolas extra */
+  .bola-extra {
+    background: radial-gradient(circle at 35% 35%, #3aad6e, #1a6040);
+    border: 1px solid var(--verde);
+    color: white;
+    box-shadow: 0 0 12px rgba(58,173,110,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+
+  .pred-meta {
+    text-align: right;
+    min-width: 90px;
+  }
+
+  .pred-score-label { font-size: 0.55rem; letter-spacing: 0.15em; color: var(--gris-claro); text-transform: uppercase; }
+
+  .pred-score-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--dorado-claro), var(--dorado));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .pred-confianza {
+    display: flex;
+    gap: 2px;
+    justify-content: flex-end;
+    margin-top: 0.3rem;
+  }
+
+  .conf-pip {
+    width: 14px; height: 4px;
+    background: var(--gris);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  .conf-pip.on { background: var(--dorado); }
+
+  .pred-razon {
+    grid-column: 1 / -1;
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 0.85rem;
+    color: var(--gris-claro);
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* ── MÚLTIPLE — tabla de combinaciones ── */
+  .multi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .multi-combo {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid rgba(201,168,76,0.1);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    color: var(--gris-claro);
+  }
+
+  .mini-bola {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 500;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--dorado);
+    flex-shrink: 0;
+  }
+
+  /* ── ESTADÍSTICAS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(201,168,76,0.1);
+    padding: 1.2rem;
+    overflow: visible;
+  }
+
+  .stat-titulo {
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--dorado);
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(201,168,76,0.15);
+  }
+
+  .stat-nums {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .stat-chip {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    padding: 0.15rem 0.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .chip-caliente { background: rgba(214,78,58,0.15); color: #e07060; border: 1px solid rgba(214,78,58,0.3); }
+  .chip-frio     { background: rgba(74,142,201,0.1); color: #6aadea; border: 1px solid rgba(74,142,201,0.25); }
+  .chip-vencido  { background: rgba(201,168,76,0.12); color: var(--dorado); border: 1px solid rgba(201,168,76,0.3); }
+
+  /* Barra de frecuencia */
+  .freq-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .freq-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    color: var(--blanco);
+    width: 28px;
+    text-align: right;
+  }
+
+  .freq-bar-wrap { flex: 1; height: 6px; background: var(--gris); border-radius: 3px; overflow: hidden; }
+  .freq-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--dorado-dim), var(--dorado)); transition: width 1s ease; }
+
+  .freq-count { font-size: 0.55rem; color: var(--gris-claro); min-width: 25px; text-align: right; }
+
+  /* ── LEYENDA ── */
+  .leyenda {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.5rem;
+    border: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 1.5rem;
+    background: rgba(255,255,255,0.01);
+  }
+
+  .ley-item { display: flex; align-items: center; gap: 0.5rem; }
+  .ley-bola { width: 14px; height: 14px; border-radius: 50%; }
+  .ley-label { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--gris-claro); text-transform: uppercase; }
+
+  /* ── COSTO MÚLTIPLE ── */
+  .costo-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: rgba(201,168,76,0.07);
+    border: 1px solid rgba(201,168,76,0.2);
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .costo-label { font-size: 0.6rem; letter-spacing: 0.15em; color: var(--gris-claro); text-transform: uppercase; }
+  .costo-val { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--dorado); }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 5;
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.2);
+    text-transform: uppercase;
+  }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .loading-overlay.active { opacity: 1; pointer-events: all; }
+
+  .loading-bolas {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .loading-bola {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--dorado);
+    animation: bounce 0.8s ease-in-out infinite;
+  }
+
+  .loading-bola:nth-child(2) { animation-delay: 0.15s; }
+  .loading-bola:nth-child(3) { animation-delay: 0.3s; }
+  .loading-bola:nth-child(4) { animation-delay: 0.45s; }
+  .loading-bola:nth-child(5) { animation-delay: 0.6s; }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); opacity: 0.4; }
+    50% { transform: translateY(-12px); opacity: 1; }
+  }
+
+  .loading-text {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--dorado);
+    text-transform: uppercase;
+  }
+
+  /* ── SECCIÓN LABEL ── */
+  .section-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--dorado-dim);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(201,168,76,0.15);
+  }
+
+  /* ── ADVERTENCIA ── */
+  .advertencia {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.25);
+    text-align: center;
+    padding: 1rem;
+    margin-top: 2rem;
+  }
+
+  /* ── ÚLTIMO SORTEO ANALIZADO ── */
+  .ultimo-sorteo-panel {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(201,168,76,0.2);
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 2rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1.5rem;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ultimo-sorteo-panel::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--dorado), var(--dorado-dim));
+  }
+
+  .ultimo-icon {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    color: var(--dorado);
+    line-height: 1;
+    text-align: center;
+  }
+
+  .ultimo-icon small {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.45rem;
+    letter-spacing: 0.15em;
+    color: var(--gris-claro);
+    text-transform: uppercase;
+    margin-top: 0.2rem;
+  }
+
+  .ultimo-info {}
+  .ultimo-fecha {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--dorado);
+    margin-bottom: 0.4rem;
+  }
+
+  .ultimo-bolas-wrap {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .ultimo-tipo-badge {
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--dorado-dim);
+    margin-left: 0.3rem;
+  }
+
+  .ultimo-meta {
+    text-align: right;
+  }
+
+  .ultimo-total-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+    color: var(--gris-claro);
+    text-transform: uppercase;
+  }
+
+  .ultimo-total-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--blanco);
+    line-height: 1;
+  }
+
+  .ultimo-total-sub {
+    font-size: 0.5rem;
+    color: var(--gris-claro);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── INGRESO MANUAL DE RESULTADOS ── */
+  .ingreso-panel {
+    background: rgba(255,255,255,0.015);
+    border: 1px solid rgba(255,255,255,0.07);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .ingreso-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .ingreso-titulo {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gris-claro);
+  }
+
+  .ingreso-toggle {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--dorado);
+    text-transform: uppercase;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .ingreso-body {
+    display: none;
+    margin-top: 1.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .ingreso-body.open { display: block; }
+
+  .ingreso-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.7rem;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 640px) { .ingreso-form { grid-template-columns: 1fr 1fr; } }
+
+  .ingreso-field label {
+    display: block;
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--gris-claro);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .ingreso-field input, .ingreso-field select {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--gris-med);
+    color: var(--blanco);
+    padding: 0.55rem 0.7rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .ingreso-field input:focus, .ingreso-field select:focus {
+    border-color: var(--dorado);
+  }
+
+  .ingreso-field select option { background: #1a1a1a; }
+
+  .numeros-ingreso {
+    display: flex;
+    gap: 0.4rem;
+    margin: 1rem 0;
+  }
+
+  .num-input {
+    width: 52px; height: 52px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--gris-med);
+    color: var(--blanco);
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .num-input:focus { border-color: var(--dorado); }
+  .num-input.valido { border-color: var(--verde); color: var(--verde); }
+  .num-input.invalido { border-color: var(--rojo); color: var(--rojo); }
+
+  .btn-agregar {
+    padding: 0.55rem 1.2rem;
+    background: transparent;
+    border: 1px solid var(--dorado);
+    color: var(--dorado);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-agregar:hover { background: var(--dorado); color: var(--negro); }
+
+  .ingreso-feedback {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 0.5rem 0;
+    min-height: 1.5rem;
+  }
+
+  .feedback-ok  { color: var(--verde); }
+  .feedback-err { color: var(--rojo); }
+
+  .historial-reciente {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .hist-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--gris-claro);
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+
+  .hist-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.6rem;
+  }
+
+  .hist-fecha { color: var(--gris-claro); min-width: 80px; }
+  .hist-tipo  { color: var(--dorado-dim); min-width: 55px; font-size: 0.5rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .hist-nums  { display: flex; gap: 0.3rem; }
+  .hist-n { font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; color: var(--blanco); }
+
+  .btn-borrar-hist {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--rojo);
+    cursor: pointer;
+    font-size: 0.6rem;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .btn-borrar-hist:hover { opacity: 1; }
+
+  /* ── MEJOR MOMENTO PARA JUGAR ── */
+  .momento-ind {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .momento-ind-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--gris-claro);
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+  .momento-ind-label { color: var(--gris-claro); flex: 1; }
+  .momento-ind-val   { color: var(--blanco); font-family:'Bebas Neue',sans-serif; font-size:0.85rem; min-width:30px; text-align:right; }
+  .dot-verde   { background: #3aad6e !important; box-shadow: 0 0 6px #3aad6e; }
+  .dot-amarillo{ background: #c9a84c !important; box-shadow: 0 0 6px #c9a84c; }
+  .dot-rojo    { background: #d64e3a !important; box-shadow: 0 0 6px #d64e3a; }
+
+  /* ── APRENDIZAJE BADGE ── */
+  .aprend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--verde);
+    border: 1px solid rgba(58,173,110,0.3);
+    padding: 0.2rem 0.6rem;
+    margin-top: 0.5rem;
+  }
+
+  .aprend-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--verde);
+    animation: pulse 1.5s infinite;
+  }
+
+  /* Animación de entrada */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in {
+    animation: fadeInUp 0.6s ease forwards;
+  }
+
+  .fade-in-delay-1 { animation-delay: 0.1s; opacity: 0; }
+  .fade-in-delay-2 { animation-delay: 0.2s; opacity: 0; }
+  .fade-in-delay-3 { animation-delay: 0.3s; opacity: 0; }
+
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-bolas">
+    <div class="loading-bola"></div>
+    <div class="loading-bola"></div>
+    <div class="loading-bola"></div>
+    <div class="loading-bola"></div>
+    <div class="loading-bola"></div>
+  </div>
+  <div class="loading-text">Analizando sorteos...</div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="header-badge">Lotería Nacional Mexicana</div>
+  <h1>CHISPAZO <span style="font-size:0.45em;letter-spacing:0.2em;background:linear-gradient(135deg,var(--verde),#2a8a56);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">BOT</span></h1>
+  <div class="header-sub">Sistema de Análisis y Predicción Estadística</div>
+  <div class="sorteos-tiempo">
+    <div class="tiempo-chip">
+      <div class="tiempo-dot"></div>
+      Chispazo de las Tres — 15:00 hrs
+    </div>
+    <div class="tiempo-chip">
+      <div class="tiempo-dot" style="animation-delay:1s"></div>
+      Chispazo Clásico — 21:00 hrs
+    </div>
+  </div>
+
+  <!-- Barra de estado de frescura -->
+  <div id="statusBar" style="margin-top:1.2rem;display:flex;align-items:center;justify-content:center;gap:1.5rem;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;">
+      <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:var(--gris-claro);display:inline-block;flex-shrink:0"></span>
+      <span id="statusTexto" style="color:var(--gris-claro)">Calculando estado...</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dorado)">
+      <span>⚡</span>
+      <span id="proximoSorteo">—</span>
+    </div>
+  </div>
+
+<main>
+
+  <!-- Último sorteo analizado -->
+  <div class="ultimo-sorteo-panel fade-in fade-in-delay-1" id="ultimoSorteoPanel">
+    <div class="ultimo-icon">
+      ◈
+      <small>Base de datos</small>
+    </div>
+    <div class="ultimo-info">
+      <div class="ultimo-fecha" id="ultimoFecha">Cargando...</div>
+      <div class="ultimo-bolas-wrap" id="ultimoBolas">
+        <span style="color:var(--gris-claro);font-size:0.7rem;font-family:'Crimson Pro',serif;font-style:italic">—</span>
+      </div>
+      <div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+        <span class="aprend-badge"><span class="aprend-dot"></span><span id="totalSorteos">0</span> sorteos en análisis</span>
+        <span id="sorteosManuales" class="aprend-badge" style="display:none;color:var(--dorado);border-color:rgba(201,168,76,0.3)">
+          <span class="aprend-dot" style="background:var(--dorado)"></span>
+          <span id="cantManuales">0</span> ingresados por ti
+        </span>
+      </div>
+    </div>
+    <div class="ultimo-meta">
+      <div class="ultimo-total-label">Concurso</div>
+      <div class="ultimo-total-val" id="ultimoConcursoNum" style="font-size:2.4rem;color:var(--dorado)">—</div>
+      <div class="ultimo-total-sub" id="tipoUltimo">—</div>
+      <div style="margin-top:0.4rem;">
+        <div class="ultimo-total-label">Rango</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--gris-claro)" id="rangoFechas">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel ingreso manual (autoaprendizaje) -->
+  <div class="ingreso-panel fade-in fade-in-delay-2">
+    <div class="ingreso-header" onclick="toggleIngreso()">
+      <span class="ingreso-titulo">➕ Ingresar resultado real del sorteo (autoaprendizaje)</span>
+      <button class="ingreso-toggle" id="toggleBtn">Abrir ▾</button>
+    </div>
+    <div class="ingreso-body" id="ingresoBody">
+      <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.85rem;color:var(--gris-claro);margin-bottom:1rem;">
+        Agrega los resultados reales de cada sorteo para que el sistema aprenda de ellos y mejore la precisión de sus predicciones.
+      </p>
+      <div class="ingreso-form">
+        <div class="ingreso-field">
+          <label>Fecha del sorteo</label>
+          <input type="date" id="ingresoFecha">
+        </div>
+        <div class="ingreso-field">
+          <label>Tipo de sorteo</label>
+          <select id="ingresoTipo">
+            <option value="clasico">Chispazo Clásico (21:00)</option>
+            <option value="tres">Chispazo de las Tres (15:00)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:0.8rem">
+        <div style="font-size:0.55rem;letter-spacing:0.15em;color:var(--gris-claro);text-transform:uppercase;margin-bottom:0.5rem;">
+          5 números ganadores (del 01 al 28)
+        </div>
+        <div class="numeros-ingreso">
+          <input class="num-input" id="n1" type="number" min="1" max="28" placeholder="01" oninput="validarNum(this)">
+          <input class="num-input" id="n2" type="number" min="1" max="28" placeholder="02" oninput="validarNum(this)">
+          <input class="num-input" id="n3" type="number" min="1" max="28" placeholder="03" oninput="validarNum(this)">
+          <input class="num-input" id="n4" type="number" min="1" max="28" placeholder="04" oninput="validarNum(this)">
+          <input class="num-input" id="n5" type="number" min="1" max="28" placeholder="05" oninput="validarNum(this)">
+        </div>
+      </div>
+      <div style="display:flex;gap:0.7rem;align-items:center;flex-wrap:wrap;margin-top:0.5rem;">
+        <button class="btn-agregar" onclick="agregarSorteo()">✓ Agregar al análisis</button>
+        <div class="ingreso-feedback" id="ingresoFeedback"></div>
+      </div>
+
+      <!-- Historial de sorteos ingresados manualmente -->
+      <div class="historial-reciente" id="historialManual" style="display:none">
+        <div class="hist-label">Sorteos ingresados por ti</div>
+        <div id="historialLista"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel de Control -->
+  <div class="control-panel fade-in fade-in-delay-1">
+    <!-- Número de predicciones -->
+    <div class="panel-card">
+      <div class="panel-label">Número de predicciones</div>
+      <div class="pred-selector">
+        <button class="pred-btn active" onclick="selPred(1,this)">1</button>
+        <button class="pred-btn" onclick="selPred(2,this)">2</button>
+        <button class="pred-btn" onclick="selPred(3,this)">3</button>
+        <button class="pred-btn" onclick="selPred(4,this)">4</button>
+        <button class="pred-btn" onclick="selPred(5,this)">5</button>
+      </div>
+    </div>
+
+    <!-- Estrategia -->
+    <div class="panel-card">
+      <div class="panel-label">Estrategia de juego</div>
+      <div class="estrategia-tabs">
+        <button class="etab active" onclick="selEstrategia('simple',this)">Simple</button>
+        <button class="etab" onclick="selEstrategia('multi6',this)">Múltiple 6</button>
+        <button class="etab" onclick="selEstrategia('multi7',this)">Múltiple 7</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INDICADOR MEJOR MOMENTO PARA JUGAR ── -->
+  <div id="momentoPanel" style="margin-bottom:1.5rem;border:1px solid rgba(201,168,76,0.15);background:rgba(255,255,255,0.015);padding:1.4rem 1.6rem;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+
+      <!-- Gauge izquierda -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;min-width:100px;">
+        <canvas id="momentoGauge" width="110" height="70"></canvas>
+        <div style="font-size:0.5rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gris-claro)">Presión estadística</div>
+      </div>
+
+      <!-- Info central -->
+      <div style="flex:1;min-width:200px;">
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">
+          <span id="momentoEmoji" style="font-size:1.4rem">◈</span>
+          <div>
+            <div id="momentoTitulo" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.1em;color:var(--dorado)">Calculando...</div>
+            <div id="momentoSub" style="font-size:0.6rem;letter-spacing:0.1em;color:var(--gris-claro);text-transform:uppercase;margin-top:0.1rem">—</div>
+          </div>
+        </div>
+        <div id="momentoDetalle" style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.85rem;color:var(--gris-claro);line-height:1.5;"></div>
+      </div>
+
+      <!-- Indicadores derecha -->
+      <div style="display:flex;flex-direction:column;gap:0.5rem;min-width:160px;">
+        <div style="font-size:0.5rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dorado);margin-bottom:0.2rem">Indicadores</div>
+        <div class="momento-ind" id="indVencidos">
+          <span class="momento-ind-dot"></span>
+          <span class="momento-ind-label">Números vencidos</span>
+          <span class="momento-ind-val" id="indVencidosVal">—</span>
+        </div>
+        <div class="momento-ind" id="indEntropía">
+          <span class="momento-ind-dot"></span>
+          <span class="momento-ind-label">Entropía reciente</span>
+          <span class="momento-ind-val" id="indEntropiaVal">—</span>
+        </div>
+        <div class="momento-ind" id="indCiclo">
+          <span class="momento-ind-dot"></span>
+          <span class="momento-ind-label">Ciclo promedio</span>
+          <span class="momento-ind-val" id="indCicloVal">—</span>
+        </div>
+        <div class="momento-ind" id="indDia">
+          <span class="momento-ind-dot"></span>
+          <span class="momento-ind-label">Día de la semana</span>
+          <span class="momento-ind-val" id="indDiaVal">—</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Botón Generar -->
+  <button class="btn-generar fade-in fade-in-delay-2" id="btnGenerar" onclick="generarPredicciones()">
+    ⚡ GENERAR PREDICCIÓN
+  </button>
+
+  <!-- Recomendación de sorteo -->
+  <div class="sorteo-rec fade-in fade-in-delay-3" id="recSorteo">
+    <div class="rec-badge dorado" id="recEmoji">◈</div>
+    <div class="rec-info">
+      <div class="rec-titulo" id="recTitulo">Presiona "Generar" para analizar los sorteos</div>
+      <div class="rec-sub" id="recSub">El sistema evaluará ambos sorteos y te dirá cuál conviene más hoy</div>
+    </div>
+    <div class="rec-detalles">
+      <div class="rec-item">
+        <div class="rec-item-hora">Las Tres</div>
+        <div class="rec-item-score" id="scoreTres" style="color:var(--gris-claro)">—</div>
+      </div>
+      <div class="rec-item">
+        <div class="rec-item-hora">Clásico</div>
+        <div class="rec-item-score" id="scoreClasico" style="color:var(--gris-claro)">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leyenda -->
+  <div class="leyenda">
+    <div class="ley-item">
+      <div class="ley-bola" style="background:radial-gradient(circle at 35% 35%,#d64e3a,#8a1f12)"></div>
+      <span class="ley-label">Caliente (frecuente)</span>
+    </div>
+    <div class="ley-item">
+      <div class="ley-bola" style="background:radial-gradient(circle at 35% 35%,#c9a84c,#7a6230)"></div>
+      <span class="ley-label">Vencido (ausente)</span>
+    </div>
+    <div class="ley-item">
+      <div class="ley-bola" style="background:radial-gradient(circle at 35% 35%,#3a6ea0,#1a3a5e)"></div>
+      <span class="ley-label">Frío (poco frecuente)</span>
+    </div>
+    <div class="ley-item">
+      <div class="ley-bola" style="background:radial-gradient(circle at 35% 35%,#3a3a3a,#1a1a1a)"></div>
+      <span class="ley-label">Normal</span>
+    </div>
+    <div class="ley-item" id="leyMulti" style="display:none">
+      <div class="ley-bola" style="background:radial-gradient(circle at 35% 35%,#3aad6e,#1a6040)"></div>
+      <span class="ley-label">Número extra múltiple</span>
+    </div>
+  </div>
+
+  <!-- Resultados -->
+  <div class="section-label">Predicciones generadas</div>
+  <div id="resultados">
+    <div style="text-align:center; padding:3rem 2rem; color:var(--gris-claro); font-family:'Crimson Pro',serif; font-style:italic; font-size:1rem; border:1px dashed rgba(255,255,255,0.07);">
+      Las predicciones aparecerán aquí una vez que presiones "Generar Predicción"
+    </div>
+  </div>
+
+  <!-- Estadísticas -->
+  <div class="section-label" style="margin-top:3rem">Análisis estadístico</div>
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-titulo">🔥 Números Calientes</div>
+      <div class="stat-nums" id="statsCalientes">
+        <span style="font-size:0.7rem;color:var(--gris-claro);font-family:'Crimson Pro',serif;font-style:italic">Genera una predicción para ver estadísticas</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-titulo">❄️ Números Fríos</div>
+      <div class="stat-nums" id="statsFrios">
+        <span style="font-size:0.7rem;color:var(--gris-claro);font-family:'Crimson Pro',serif;font-style:italic">—</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-titulo">⏰ Vencidos (sin aparecer)</div>
+      <div class="stat-nums" id="statsVencidos">
+        <span style="font-size:0.7rem;color:var(--gris-claro);font-family:'Crimson Pro',serif;font-style:italic">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frecuencias top 10 — PIE CHART INTERACTIVO -->
+  <div class="stat-card" style="margin-top:1rem;padding:1.5rem" id="statsFreq">
+    <div class="stat-titulo">📊 Frecuencia histórica — Top 10 (<span id="freqSorteoCount">—</span> sorteos analizados)</div>
+    <div style="display:flex;justify-content:center;margin-top:1.2rem;position:relative;overflow:visible;">
+      <canvas id="pieChart" width="360" height="360" style="cursor:pointer;display:block;overflow:visible;"></canvas>
+      <!-- Tooltip -->
+      <div id="pieTooltip" style="
+        display:none;position:absolute;pointer-events:none;
+        background:rgba(10,10,10,0.95);border:1px solid rgba(201,168,76,0.4);
+        padding:0.6rem 1rem;text-align:center;min-width:100px;
+        box-shadow:0 0 20px rgba(0,0,0,0.8);
+      ">
+        <div id="ttNum" style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;line-height:1"></div>
+        <div id="ttFreq" style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-top:0.2rem"></div>
+        <div id="ttPct" style="font-size:0.55rem;letter-spacing:0.1em;color:#666;margin-top:0.1rem"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="advertencia">
+    ⚠ Este sistema es una herramienta de análisis estadístico con fines informativos. La lotería es un juego de azar. Ningún sistema garantiza ganancias. Juegue responsablemente.
+  </div>
+
+  <!-- Panel explicativo del sistema de análisis -->
+  <div style="margin-top:2.5rem; border:1px solid rgba(201,168,76,0.12); background:rgba(255,255,255,0.015);">
+    <div id="metodoHeader" style="padding:1.2rem 1.5rem; border-bottom:1px solid rgba(201,168,76,0.1); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleMetodo()">
+      <span style="font-size:0.6rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--dorado)">📐 ¿Cómo funciona el análisis? — Metodología completa</span>
+      <span id="metodoToggleBtn" style="font-size:0.6rem;color:var(--dorado);letter-spacing:0.1em;font-family:'DM Mono',monospace">Abrir ▾</span>
+    </div>
+    <div id="metodoBody" style="display:none; padding:1.5rem; line-height:1.8;">
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;">
+
+        <div>
+          <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);border-bottom:1px solid rgba(201,168,76,0.15);padding-bottom:0.4rem;margin-bottom:0.8rem">① Frecuencia histórica (Peso 30%)</div>
+          <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);">
+            Se cuentan las apariciones de cada número en los <strong style="color:var(--blanco)">~100 sorteos</strong> del historial. La frecuencia esperada teórica es <strong style="color:var(--dorado)">5/28 × total_sorteos</strong>. Números que superan ese umbral se marcan como <span style="color:#e07060">calientes 🔴</span>, los que quedan muy por debajo como <span style="color:#6aadea">fríos ❄️</span>.
+          </p>
+        </div>
+
+        <div>
+          <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);border-bottom:1px solid rgba(201,168,76,0.15);padding-bottom:0.4rem;margin-bottom:0.8rem">② Cronómetro de ausencia (Peso 25%)</div>
+          <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);">
+            Rastrea cuántos sorteos consecutivos lleva sin aparecer cada número. El <strong style="color:var(--blanco)">ciclo promedio teórico</strong> es ~5.6 sorteos por número. Cuando un número lleva <strong style="color:var(--dorado)">≥8 sorteos ausente</strong> (1.4× su ciclo), se clasifica como <span style="color:var(--dorado)">vencido ⏰</span> y recibe máxima presión estadística.
+          </p>
+        </div>
+
+        <div>
+          <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);border-bottom:1px solid rgba(201,168,76,0.15);padding-bottom:0.4rem;margin-bottom:0.8rem">③ Suma de la combinación (Peso 20%)</div>
+          <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);">
+            La <strong style="color:var(--blanco)">suma promedio histórica</strong> de combinaciones ganadoras oscila entre <strong style="color:var(--dorado)">62 y 82</strong> (media ~72). Combinaciones con suma dentro de ±1 desviación estándar reciben +20 puntos. Sumas extremas (&lt;40 o &gt;105) indican combinaciones poco probables.
+          </p>
+        </div>
+
+        <div>
+          <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);border-bottom:1px solid rgba(201,168,76,0.15);padding-bottom:0.4rem;margin-bottom:0.8rem">④ Distribución par / impar (Peso 15%)</div>
+          <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);">
+            Se analiza qué distribución de pares/impares aparece más en el historial real. Las más frecuentes son <strong style="color:var(--blanco)">2P/3I y 3P/2I</strong>. Combinaciones que respetan el patrón histórico dominante suman +15 pts. Las distribuciones 5P/0I o 0P/5I son extremadamente raras.
+          </p>
+        </div>
+
+        <div>
+          <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);border-bottom:1px solid rgba(201,168,76,0.15);padding-bottom:0.4rem;margin-bottom:0.8rem">⑤ Distribución zonal baja/media/alta (Peso 10%)</div>
+          <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);">
+            El rango 1–28 se divide en <strong style="color:var(--blanco)">Zona Baja (1–9)</strong>, <strong style="color:var(--blanco)">Media (10–19)</strong> y <strong style="color:var(--blanco)">Alta (20–28)</strong>. Combinaciones que incluyen números de las 3 zonas tienen mayor coherencia histórica. Se penalizan combinaciones concentradas en una sola zona.
+          </p>
+        </div>
+
+        <div>
+          <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);border-bottom:1px solid rgba(201,168,76,0.15);padding-bottom:0.4rem;margin-bottom:0.8rem">⑥ Recomendador de sorteo Las Tres vs Clásico</div>
+          <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);">
+            Se analiza por separado el historial de cada tipo de sorteo. El score considera: <strong style="color:var(--blanco)">overlap de vencidos</strong> con tendencia reciente de ese sorteo + <strong style="color:var(--blanco)">varianza de distribución</strong> vs. histórico. Score &lt;45 en ambos → se recomienda <span style="color:var(--rojo)">no jugar</span>.
+          </p>
+        </div>
+
+      </div>
+
+      <div style="margin-top:1.5rem;padding:1rem;background:rgba(201,168,76,0.05);border:1px solid rgba(201,168,76,0.1);">
+        <div style="font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dorado);margin-bottom:0.6rem">📊 Sobre el rango de análisis óptimo</div>
+        <p style="font-family:'Crimson Pro',serif;font-style:italic;font-size:0.9rem;color:var(--gris-claro);line-height:1.7;">
+          El sistema actualmente analiza <strong style="color:var(--blanco)">202 sorteos reales verificados (~101 días)</strong>, desde el 13 de noviembre 2025 hasta hoy, obtenidos del CSV oficial de la Lotería Nacional. Este es exactamente el rango óptimo: entre <strong style="color:var(--dorado)">150 y 220 sorteos (75–110 días)</strong> captura patrones de ciclo completos sin diluir las tendencias recientes con datos demasiado antiguos. Rangos más largos (500+) son útiles sólo para frecuencia pura, pero pierden precisión en el cronómetro de ausencia reciente. <strong style="color:var(--blanco)">El autoaprendizaje mejora el análisis continuamente:</strong> cada resultado real que ingreses actualiza instantáneamente los 6 indicadores.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  CHISPAZO · Lotería Nacional Mexicana · Sistema de análisis estadístico · 5 números del 1 al 28
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MOTOR ESTADÍSTICO CHISPAZO
+// ═══════════════════════════════════════════════════════════════
+
+// Estado de la app
+const STATE = {
+  cantPred: 1,
+  estrategia: 'simple'
+};
+
+// ── DATOS HISTÓRICOS REALES ──
+// Fuente: loterianacional.gob.mx/Documentos/Historicos/Chispazo.csv + resultadoschispazo.com
+// Actualizado al: 25/Feb/2026 — Sorteo #11849 (Las Tres 15:00)
+// Regla tipos: menor concurso del día = Las Tres (15:00) | mayor = Clásico (21:00)
+// ✅ Todos los sorteos verificados contra fuentes oficiales
+// ⚠️ Usa el panel de autoaprendizaje para agregar el Clásico de hoy #11850
+const HISTORICO = [
+  {f:"2026-02-25",t:"tres",   n:[3,6,16,26,28],  c:11849}, // ✅ resultadoschispazo.com
+  {f:"2026-02-24",t:"clasico",n:[12,15,17,18,26], c:11848}, // ✅ resultadoschispazo.com
+  {f:"2026-02-24",t:"tres",   n:[4,6,18,25,26],   c:11847}, // ✅ resultadoschispazo.com
+  {f:"2026-02-23",t:"clasico",n:[9,12,18,21,23],  c:11846}, // ✅ resultadoschispazo.com
+  {f:"2026-02-23",t:"tres",   n:[5,14,18,24,25],  c:11845}, // ✅ resultadoschispazo.com
+  {f:"2026-02-22",t:"clasico",n:[6,13,23,24,25], c:11844}, // ✅ resultadoschispazo.com
+  {f:"2026-02-22",t:"tres",   n:[4,6,9,17,21],   c:11843}, // ✅ loterianacional.gob.mx
+  {f:"2026-02-21",t:"clasico",n:[3,10,14,22,23], c:11842}, // ✅ resultadoschispazo.com
+  {f:"2026-02-21",t:"tres",   n:[2,5,17,26,27],  c:11841}, // ✅ resultadoschispazo.com
+  {f:"2026-02-20",t:"clasico",n:[3,6,16,17,20],c:11840},
+  {f:"2026-02-20",t:"tres",n:[12,14,18,19,20],c:11839},
+  {f:"2026-02-19",t:"clasico",n:[3,14,16,21,22],c:11838},
+  {f:"2026-02-19",t:"tres",n:[2,4,7,10,14],c:11837},
+  {f:"2026-02-18",t:"clasico",n:[8,9,18,22,25],c:11836},
+  {f:"2026-02-18",t:"tres",n:[1,2,14,24,26],c:11835},
+  {f:"2026-02-17",t:"clasico",n:[7,9,12,15,18],c:11834},
+  {f:"2026-02-17",t:"tres",n:[3,7,16,17,18],c:11833},
+  {f:"2026-02-16",t:"clasico",n:[3,5,9,10,28],c:11832},
+  {f:"2026-02-16",t:"tres",n:[14,16,20,21,27],c:11831},
+  {f:"2026-02-15",t:"clasico",n:[3,5,6,12,20],c:11830},
+  {f:"2026-02-15",t:"tres",n:[2,17,20,22,26],c:11829},
+  {f:"2026-02-14",t:"clasico",n:[3,6,10,11,19],c:11828},
+  {f:"2026-02-14",t:"tres",n:[3,10,13,16,17],c:11827},
+  {f:"2026-02-13",t:"clasico",n:[7,8,22,24,25],c:11826},
+  {f:"2026-02-13",t:"tres",n:[3,9,10,17,18],c:11825},
+  {f:"2026-02-12",t:"clasico",n:[1,2,6,16,21],c:11824},
+  {f:"2026-02-12",t:"tres",n:[3,11,18,25,26],c:11823},
+  {f:"2026-02-11",t:"clasico",n:[4,5,20,25,27],c:11822},
+  {f:"2026-02-11",t:"tres",n:[8,11,16,17,19],c:11821},
+  {f:"2026-02-10",t:"clasico",n:[1,15,17,24,27],c:11820},
+  {f:"2026-02-10",t:"tres",n:[3,5,14,15,22],c:11819},
+  {f:"2026-02-09",t:"clasico",n:[7,8,20,24,28],c:11818},
+  {f:"2026-02-09",t:"tres",n:[14,20,21,25,28],c:11817},
+  {f:"2026-02-08",t:"clasico",n:[10,11,22,25,26],c:11816},
+  {f:"2026-02-08",t:"tres",n:[2,4,5,14,27],c:11815},
+  {f:"2026-02-07",t:"clasico",n:[8,10,12,17,24],c:11814},
+  {f:"2026-02-07",t:"tres",n:[3,6,11,17,22],c:11813},
+  {f:"2026-02-06",t:"clasico",n:[3,4,5,13,26],c:11812},
+  {f:"2026-02-06",t:"tres",n:[4,5,11,15,24],c:11811},
+  {f:"2026-02-05",t:"clasico",n:[4,14,16,18,22],c:11810},
+  {f:"2026-02-05",t:"tres",n:[5,10,12,17,22],c:11809},
+  {f:"2026-02-04",t:"clasico",n:[5,14,21,22,24],c:11808},
+  {f:"2026-02-04",t:"tres",n:[9,18,21,24,26],c:11807},
+  {f:"2026-02-03",t:"clasico",n:[7,10,14,20,28],c:11806},
+  {f:"2026-02-03",t:"tres",n:[8,11,17,19,26],c:11805},
+  {f:"2026-02-02",t:"clasico",n:[3,10,16,26,27],c:11804},
+  {f:"2026-02-02",t:"tres",n:[12,16,19,22,26],c:11803},
+  {f:"2026-02-01",t:"clasico",n:[1,2,6,12,16],c:11802},
+  {f:"2026-02-01",t:"tres",n:[5,14,19,22,27],c:11801},
+  {f:"2026-01-31",t:"clasico",n:[2,16,20,22,23],c:11800},
+  {f:"2026-01-31",t:"tres",n:[9,11,17,21,27],c:11799},
+  {f:"2026-01-30",t:"clasico",n:[1,2,11,23,24],c:11798},
+  {f:"2026-01-30",t:"tres",n:[3,5,11,18,23],c:11797},
+  {f:"2026-01-29",t:"clasico",n:[3,4,14,24,26],c:11796},
+  {f:"2026-01-29",t:"tres",n:[8,9,16,25,28],c:11795},
+  {f:"2026-01-28",t:"clasico",n:[3,9,23,25,28],c:11794},
+  {f:"2026-01-28",t:"tres",n:[5,8,12,17,24],c:11793},
+  {f:"2026-01-27",t:"clasico",n:[2,3,23,26,28],c:11792},
+  {f:"2026-01-27",t:"tres",n:[5,8,9,11,17],c:11791},
+  {f:"2026-01-26",t:"clasico",n:[6,7,10,16,17],c:11790},
+  {f:"2026-01-26",t:"tres",n:[9,13,14,15,24],c:11789},
+  {f:"2026-01-25",t:"clasico",n:[3,8,15,21,22],c:11788},
+  {f:"2026-01-25",t:"tres",n:[7,14,20,24,28],c:11787},
+  {f:"2026-01-24",t:"clasico",n:[5,12,14,17,25],c:11786},
+  {f:"2026-01-24",t:"tres",n:[1,2,6,7,23],c:11785},
+  {f:"2026-01-23",t:"clasico",n:[10,14,17,19,25],c:11784},
+  {f:"2026-01-23",t:"tres",n:[3,6,8,16,24],c:11783},
+  {f:"2026-01-22",t:"clasico",n:[2,5,10,18,19],c:11782},
+  {f:"2026-01-22",t:"tres",n:[11,16,23,24,27],c:11781},
+  {f:"2026-01-21",t:"clasico",n:[1,2,14,15,18],c:11780},
+  {f:"2026-01-21",t:"tres",n:[10,13,15,19,28],c:11779},
+  {f:"2026-01-20",t:"clasico",n:[4,9,12,17,18],c:11778},
+  {f:"2026-01-20",t:"tres",n:[7,19,20,22,23],c:11777},
+  {f:"2026-01-19",t:"clasico",n:[6,14,21,23,25],c:11776},
+  {f:"2026-01-19",t:"tres",n:[4,5,6,9,13],c:11775},
+  {f:"2026-01-18",t:"clasico",n:[2,4,10,17,20],c:11774},
+  {f:"2026-01-18",t:"tres",n:[6,8,10,11,16],c:11773},
+  {f:"2026-01-17",t:"clasico",n:[5,8,13,16,19],c:11772},
+  {f:"2026-01-17",t:"tres",n:[6,17,19,22,27],c:11771},
+  {f:"2026-01-16",t:"clasico",n:[1,9,14,15,22],c:11770},
+  {f:"2026-01-16",t:"tres",n:[3,10,12,16,25],c:11769},
+  {f:"2026-01-15",t:"clasico",n:[9,16,19,23,26],c:11768},
+  {f:"2026-01-15",t:"tres",n:[10,19,24,26,27],c:11767},
+  {f:"2026-01-14",t:"clasico",n:[4,7,14,19,24],c:11766},
+  {f:"2026-01-14",t:"tres",n:[3,8,21,22,26],c:11765},
+  {f:"2026-01-13",t:"clasico",n:[4,10,17,21,27],c:11764},
+  {f:"2026-01-13",t:"tres",n:[1,9,12,18,26],c:11763},
+  {f:"2026-01-12",t:"clasico",n:[11,14,16,19,23],c:11762},
+  {f:"2026-01-12",t:"tres",n:[7,8,10,20,27],c:11761},
+  {f:"2026-01-11",t:"clasico",n:[7,11,15,23,27],c:11760},
+  {f:"2026-01-11",t:"tres",n:[5,10,22,24,27],c:11759},
+  {f:"2026-01-10",t:"clasico",n:[1,5,6,9,13],c:11758},
+  {f:"2026-01-10",t:"tres",n:[6,7,8,22,28],c:11757},
+  {f:"2026-01-09",t:"clasico",n:[11,12,14,18,19],c:11756},
+  {f:"2026-01-09",t:"tres",n:[4,5,6,14,28],c:11755},
+  {f:"2026-01-08",t:"clasico",n:[2,14,16,18,19],c:11754},
+  {f:"2026-01-08",t:"tres",n:[2,5,7,11,26],c:11753},
+  {f:"2026-01-07",t:"clasico",n:[1,8,16,21,23],c:11752},
+  {f:"2026-01-07",t:"tres",n:[3,14,21,22,24],c:11751},
+  {f:"2026-01-06",t:"clasico",n:[5,10,13,16,21],c:11750},
+  {f:"2026-01-06",t:"tres",n:[2,5,6,16,19],c:11749},
+  {f:"2026-01-05",t:"clasico",n:[2,4,12,24,28],c:11748},
+  {f:"2026-01-05",t:"tres",n:[3,5,15,21,25],c:11747},
+  {f:"2026-01-04",t:"clasico",n:[9,11,13,22,28],c:11746},
+  {f:"2026-01-04",t:"tres",n:[16,17,20,25,26],c:11745},
+  {f:"2026-01-03",t:"clasico",n:[7,14,18,24,26],c:11744},
+  {f:"2026-01-03",t:"tres",n:[6,7,16,21,28],c:11743},
+  {f:"2026-01-02",t:"clasico",n:[3,7,10,17,20],c:11742},
+  {f:"2026-01-02",t:"tres",n:[2,10,11,15,17],c:11741},
+  {f:"2026-01-01",t:"clasico",n:[5,11,17,23,24],c:11740},
+  {f:"2026-01-01",t:"tres",n:[2,6,14,20,22],c:11739},
+  {f:"2025-12-31",t:"clasico",n:[1,7,13,15,23],c:11738},
+  {f:"2025-12-31",t:"tres",n:[5,7,8,9,14],c:11737},
+  {f:"2025-12-30",t:"clasico",n:[1,3,12,18,27],c:11736},
+  {f:"2025-12-30",t:"tres",n:[13,17,23,25,26],c:11735},
+  {f:"2025-12-29",t:"clasico",n:[1,7,9,22,25],c:11734},
+  {f:"2025-12-29",t:"tres",n:[5,6,11,16,20],c:11733},
+  {f:"2025-12-28",t:"clasico",n:[1,5,13,20,23],c:11732},
+  {f:"2025-12-28",t:"tres",n:[3,7,16,25,28],c:11731},
+  {f:"2025-12-27",t:"clasico",n:[7,9,13,18,22],c:11730},
+  {f:"2025-12-27",t:"tres",n:[11,18,19,21,22],c:11729},
+  {f:"2025-12-26",t:"clasico",n:[9,14,16,23,24],c:11728},
+  {f:"2025-12-26",t:"tres",n:[7,11,16,17,19],c:11727},
+  {f:"2025-12-25",t:"clasico",n:[4,8,14,21,25],c:11726},
+  {f:"2025-12-25",t:"tres",n:[10,16,17,22,25],c:11725},
+  {f:"2025-12-24",t:"clasico",n:[5,10,12,13,28],c:11724},
+  {f:"2025-12-24",t:"tres",n:[5,14,15,16,23],c:11723},
+  {f:"2025-12-23",t:"clasico",n:[4,5,7,23,28],c:11722},
+  {f:"2025-12-23",t:"tres",n:[5,11,12,15,19],c:11721},
+  {f:"2025-12-22",t:"clasico",n:[5,10,23,25,28],c:11720},
+  {f:"2025-12-22",t:"tres",n:[5,8,20,22,26],c:11719},
+  {f:"2025-12-21",t:"clasico",n:[5,8,11,17,18],c:11718},
+  {f:"2025-12-21",t:"tres",n:[4,6,13,18,21],c:11717},
+  {f:"2025-12-20",t:"clasico",n:[7,11,18,20,28],c:11716},
+  {f:"2025-12-20",t:"tres",n:[11,12,17,21,24],c:11715},
+  {f:"2025-12-19",t:"clasico",n:[13,15,21,25,28],c:11714},
+  {f:"2025-12-19",t:"tres",n:[4,8,17,18,23],c:11713},
+  {f:"2025-12-18",t:"clasico",n:[6,8,14,16,20],c:11712},
+  {f:"2025-12-18",t:"tres",n:[9,11,19,24,27],c:11711},
+  {f:"2025-12-17",t:"clasico",n:[5,7,13,20,24],c:11710},
+  {f:"2025-12-17",t:"tres",n:[5,8,9,12,22],c:11709},
+  {f:"2025-12-16",t:"clasico",n:[1,12,15,18,28],c:11708},
+  {f:"2025-12-16",t:"tres",n:[1,3,20,21,25],c:11707},
+  {f:"2025-12-15",t:"clasico",n:[6,13,19,23,26],c:11706},
+  {f:"2025-12-15",t:"tres",n:[1,3,8,15,28],c:11705},
+  {f:"2025-12-14",t:"clasico",n:[10,17,22,24,26],c:11704},
+  {f:"2025-12-14",t:"tres",n:[2,6,11,18,24],c:11703},
+  {f:"2025-12-13",t:"clasico",n:[1,9,12,22,24],c:11702},
+  {f:"2025-12-13",t:"tres",n:[6,15,19,20,28],c:11701},
+  {f:"2025-12-12",t:"clasico",n:[1,6,7,12,23],c:11700},
+  {f:"2025-12-12",t:"tres",n:[1,7,8,17,22],c:11699},
+  {f:"2025-12-11",t:"clasico",n:[10,16,19,23,25],c:11698},
+  {f:"2025-12-11",t:"tres",n:[5,13,21,26,27],c:11697},
+  {f:"2025-12-10",t:"clasico",n:[4,11,13,16,17],c:11696},
+  {f:"2025-12-10",t:"tres",n:[4,6,17,21,24],c:11695},
+  {f:"2025-12-09",t:"clasico",n:[1,3,4,18,19],c:11694},
+  {f:"2025-12-09",t:"tres",n:[2,6,7,21,27],c:11693},
+  {f:"2025-12-08",t:"clasico",n:[6,13,19,24,28],c:11692},
+  {f:"2025-12-08",t:"tres",n:[3,4,15,18,28],c:11691},
+  {f:"2025-12-07",t:"clasico",n:[10,17,18,19,26],c:11690},
+  {f:"2025-12-07",t:"tres",n:[2,6,10,12,13],c:11689},
+  {f:"2025-12-06",t:"clasico",n:[12,14,21,22,27],c:11688},
+  {f:"2025-12-06",t:"tres",n:[2,21,23,26,28],c:11687},
+  {f:"2025-12-05",t:"clasico",n:[8,23,26,27,28],c:11686},
+  {f:"2025-12-05",t:"tres",n:[14,16,20,22,27],c:11685},
+  {f:"2025-12-04",t:"clasico",n:[3,9,12,13,22],c:11684},
+  {f:"2025-12-04",t:"tres",n:[6,8,11,23,26],c:11683},
+  {f:"2025-12-03",t:"clasico",n:[15,18,23,26,28],c:11682},
+  {f:"2025-12-03",t:"tres",n:[4,6,17,20,23],c:11681},
+  {f:"2025-12-02",t:"clasico",n:[9,16,18,25,27],c:11680},
+  {f:"2025-12-02",t:"tres",n:[10,11,14,18,25],c:11679},
+  {f:"2025-12-01",t:"clasico",n:[3,7,13,16,20],c:11678},
+  {f:"2025-12-01",t:"tres",n:[2,3,10,20,23],c:11677},
+  {f:"2025-11-30",t:"clasico",n:[11,16,17,22,24],c:11676},
+  {f:"2025-11-30",t:"tres",n:[7,12,13,17,24],c:11675},
+  {f:"2025-11-29",t:"clasico",n:[15,16,22,24,28],c:11674},
+  {f:"2025-11-29",t:"tres",n:[2,9,10,14,23],c:11673},
+  {f:"2025-11-28",t:"clasico",n:[2,3,10,14,20],c:11672},
+  {f:"2025-11-28",t:"tres",n:[2,8,19,21,25],c:11671},
+  {f:"2025-11-27",t:"clasico",n:[4,9,13,15,18],c:11670},
+  {f:"2025-11-27",t:"tres",n:[1,10,19,21,26],c:11669},
+  {f:"2025-11-26",t:"clasico",n:[4,13,22,26,27],c:11668},
+  {f:"2025-11-26",t:"tres",n:[15,23,24,26,28],c:11667},
+  {f:"2025-11-25",t:"clasico",n:[9,15,18,21,22],c:11666},
+  {f:"2025-11-25",t:"tres",n:[3,4,6,9,22],c:11665},
+  {f:"2025-11-24",t:"clasico",n:[4,6,8,11,15],c:11664},
+  {f:"2025-11-24",t:"tres",n:[3,6,16,22,26],c:11663},
+  {f:"2025-11-23",t:"clasico",n:[5,10,13,14,28],c:11662},
+  {f:"2025-11-23",t:"tres",n:[1,4,7,13,26],c:11661},
+  {f:"2025-11-22",t:"clasico",n:[1,4,5,6,15],c:11660},
+  {f:"2025-11-22",t:"tres",n:[7,12,14,15,24],c:11659},
+  {f:"2025-11-21",t:"clasico",n:[1,3,13,19,21],c:11658},
+  {f:"2025-11-21",t:"tres",n:[2,3,8,12,26],c:11657},
+  {f:"2025-11-20",t:"clasico",n:[9,11,21,22,28],c:11656},
+  {f:"2025-11-20",t:"tres",n:[1,7,10,15,21],c:11655},
+  {f:"2025-11-19",t:"clasico",n:[6,15,18,22,24],c:11654},
+  {f:"2025-11-19",t:"tres",n:[3,5,13,15,24],c:11653},
+  {f:"2025-11-18",t:"clasico",n:[5,8,11,20,24],c:11652},
+  {f:"2025-11-18",t:"tres",n:[2,6,13,15,24],c:11651},
+  {f:"2025-11-17",t:"clasico",n:[3,5,14,22,24],c:11650},
+  {f:"2025-11-17",t:"tres",n:[4,11,15,17,27],c:11649},
+  {f:"2025-11-16",t:"clasico",n:[9,13,14,15,28],c:11648},
+  {f:"2025-11-16",t:"tres",n:[6,16,18,21,27],c:11647},
+  {f:"2025-11-15",t:"clasico",n:[4,12,14,21,28],c:11646},
+  {f:"2025-11-15",t:"tres",n:[8,14,18,21,28],c:11645},
+  {f:"2025-11-14",t:"clasico",n:[2,11,20,21,26],c:11644},
+  {f:"2025-11-14",t:"tres",n:[1,10,11,26,28],c:11643},
+  {f:"2025-11-13",t:"clasico",n:[2,8,10,24,25],c:11642},
+  {f:"2025-11-13",t:"tres",n:[10,13,17,18,27],c:11641}
+];
+
+const TODOS = Array.from({length:28},(_,i)=>i+1);
+
+// ── ANÁLISIS ESTADÍSTICO ──
+function calcularEstadisticas() {
+  const freq = {};
+  TODOS.forEach(n => freq[n] = 0);
+
+  HISTORICO.forEach(s => s.n.forEach(n => freq[n]++));
+
+  const totalSorteos = HISTORICO.length;
+  const esperado = totalSorteos * 5 / 28;
+
+  const calientes = Object.entries(freq)
+    .filter(([n,f]) => f > esperado)
+    .sort((a,b) => b[1]-a[1])
+    .map(([n]) => parseInt(n));
+
+  const frios = Object.entries(freq)
+    .filter(([n,f]) => f <= esperado * 0.7)
+    .sort((a,b) => a[1]-b[1])
+    .map(([n]) => parseInt(n));
+
+  // Cronómetro: cuántos sorteos lleva sin aparecer
+  const cronometro = {};
+  TODOS.forEach(n => {
+    const idx = HISTORICO.findIndex(s => s.n.includes(n));
+    cronometro[n] = idx === -1 ? HISTORICO.length : idx;
+  });
+
+  // Vencidos: ausentes más de 8 sorteos (ciclo ~5.6)
+  const vencidos = TODOS
+    .filter(n => cronometro[n] >= 8)
+    .sort((a,b) => cronometro[b] - cronometro[a]);
+
+  // Suma promedio histórica
+  const sumas = HISTORICO.map(s => s.n.reduce((a,b) => a+b, 0));
+  const sumaProm = sumas.reduce((a,b) => a+b, 0) / sumas.length;
+  const sumaDesv = Math.sqrt(sumas.reduce((a,b) => a + (b-sumaProm)**2, 0) / sumas.length);
+
+  // Par/impar más frecuente
+  const distPI = {};
+  HISTORICO.forEach(s => {
+    const p = s.n.filter(n => n%2===0).length;
+    distPI[p] = (distPI[p]||0) + 1;
+  });
+  const mejorPI = Object.entries(distPI).sort((a,b)=>b[1]-a[1])[0];
+
+  // Pesos ponderados
+  const pesos = {};
+  TODOS.forEach(n => {
+    const f = freq[n] / (totalSorteos * 5 / 28 + 1);
+    const ausencia = cronometro[n];
+    const presion = Math.min(ausencia / 5.6, 3.0);
+    pesos[n] = f * 0.6 + presion * 0.4;
+  });
+
+  return { freq, calientes, frios, vencidos, cronometro, sumaProm, sumaDesv, mejorPI: parseInt(mejorPI[0]), pesos };
+}
+
+// ── SCORING ──
+function puntuarCombo(nums, stats) {
+  let score = 0;
+  const razones = [];
+
+  // Suma en rango
+  const suma = nums.reduce((a,b) => a+b, 0);
+  if (Math.abs(suma - stats.sumaProm) <= stats.sumaDesv) { score += 20; razones.push(`suma ${suma} en rango óptimo`); }
+  else if (Math.abs(suma - stats.sumaProm) <= stats.sumaDesv * 2) score += 10;
+
+  // Par/impar
+  const pares = nums.filter(n => n%2===0).length;
+  if (pares === stats.mejorPI) { score += 15; razones.push(`distribución ${pares}P/${5-pares}I`); }
+
+  // Calientes
+  const hitsC = nums.filter(n => stats.calientes.slice(0,10).includes(n)).length;
+  score += hitsC * 7;
+  if (hitsC >= 2) razones.push(`${hitsC} números calientes`);
+
+  // Vencidos
+  const hitsV = nums.filter(n => stats.vencidos.slice(0,6).includes(n)).length;
+  score += hitsV * 12;
+  if (hitsV >= 1) razones.push(`${hitsV} número${hitsV>1?'s':''} vencido${hitsV>1?'s':''}`);
+
+  // Zonas
+  const bajos  = nums.filter(n => n <= 9).length;
+  const medios = nums.filter(n => n >= 10 && n <= 19).length;
+  const altos  = nums.filter(n => n >= 20).length;
+  if (bajos >= 1 && medios >= 1 && altos >= 1) { score += 10; razones.push('distribución zonal equilibrada'); }
+
+  // Consecutivos (penalizar 3+)
+  const sorted = [...nums].sort((a,b)=>a-b);
+  let consec = 0;
+  for (let i=0; i<4; i++) if (sorted[i+1]-sorted[i]===1) consec++;
+  if (consec >= 3) score -= 10;
+
+  // Pesos individuales
+  const pesoTotal = nums.reduce((a,n) => a + (stats.pesos[n]||0.1), 0);
+  score += Math.round(pesoTotal * 5);
+
+  score = Math.max(0, Math.min(100, score));
+  return {
+    numeros: [...nums].sort((a,b)=>a-b),
+    score,
+    nivel: Math.max(1, Math.min(5, Math.round(score/20))),
+    razon: razones.length ? razones.join(', ') : 'combinación equilibrada'
+  };
+}
+
+// ── GENERACIÓN DE COMBINACIONES ──
+function seleccionPonderada(pool, pesos, n, excluir=[]) {
+  const candidatos = pool.filter(x => !excluir.includes(x));
+  const ps = candidatos.map(x => pesos[x] || 0.1);
+  const suma = ps.reduce((a,b)=>a+b,0);
+  const probs = ps.map(p => p/suma);
+
+  const elegidos = [];
+  const restante = [...candidatos];
+  const restProbs = [...probs];
+
+  while (elegidos.length < n && restante.length > 0) {
+    let r = Math.random();
+    let idx = 0;
+    while (r > restProbs[idx] && idx < restProbs.length - 1) {
+      r -= restProbs[idx]; idx++;
+    }
+    elegidos.push(restante[idx]);
+    restante.splice(idx, 1);
+    restProbs.splice(idx, 1);
+    const s2 = restProbs.reduce((a,b)=>a+b,0);
+    if (s2 > 0) restProbs.forEach((_,i) => restProbs[i] /= s2);
+  }
+  return elegidos;
+}
+
+function generarCombinacion(stats, estrategiaNombre) {
+  const estrategias = [
+    // Calientes + vencidos
+    () => {
+      const cal = stats.calientes.slice(0,8);
+      const base = cal.slice(0,3).sort(() => Math.random()-0.5).slice(0,3);
+      const resto = seleccionPonderada(TODOS, stats.pesos, 2, base);
+      return [...base, ...resto];
+    },
+    // Vencidos primero
+    () => {
+      const venc = stats.vencidos.slice(0,8);
+      const base = venc.length >= 3 ? venc.slice(0,3) : venc;
+      const resto = seleccionPonderada(TODOS, stats.pesos, 5-base.length, base);
+      return [...base, ...resto];
+    },
+    // Ponderada pura
+    () => seleccionPonderada(TODOS, stats.pesos, 5),
+    // Zonal equilibrada
+    () => {
+      const baja  = TODOS.filter(n => n<=9);
+      const media = TODOS.filter(n => n>=10 && n<=19);
+      const alta  = TODOS.filter(n => n>=20);
+      const e1 = baja[Math.floor(Math.random()*baja.length)];
+      const e2 = baja.filter(n=>n!==e1)[Math.floor(Math.random()*(baja.length-1))];
+      const e3 = media[Math.floor(Math.random()*media.length)];
+      const e4 = media.filter(n=>n!==e3)[Math.floor(Math.random()*(media.length-1))];
+      const e5 = alta[Math.floor(Math.random()*alta.length)];
+      return [e1,e2,e3,e4,e5];
+    },
+    // Suma objetivo
+    () => {
+      let mejor = null, mejorDiff = Infinity;
+      for (let i=0; i<300; i++) {
+        const cand = seleccionPonderada(TODOS, stats.pesos, 5);
+        const diff = Math.abs(cand.reduce((a,b)=>a+b,0) - stats.sumaProm);
+        if (diff < mejorDiff) { mejorDiff = diff; mejor = cand; }
+        if (diff <= 5) break;
+      }
+      return mejor;
+    }
+  ];
+
+  let mejor = null, mejorScore = -1;
+  for (let intento = 0; intento < 60; intento++) {
+    const ef = estrategias[intento % estrategias.length];
+    const nums = ef();
+    if (!nums || new Set(nums).size !== 5) continue;
+    const r = puntuarCombo(nums, stats);
+    if (r.score > mejorScore) { mejorScore = r.score; mejor = r; }
+  }
+  return mejor;
+}
+
+function generarNPredicciones(n, stats) {
+  const resultados = [];
+  const usados = new Set();
+
+  for (let i = 0; i < n; i++) {
+    let candidato = null;
+    let intentos = 0;
+
+    while (intentos < 40) {
+      const c = generarCombinacion(stats);
+      if (!c) { intentos++; continue; }
+      const clave = c.numeros.join('-');
+      const overlap = c.numeros.filter(x => usados.has(x)).length;
+      if (!resultados.find(r => r.numeros.join('-') === clave) && overlap <= 2) {
+        candidato = c;
+        break;
+      }
+      intentos++;
+    }
+
+    if (!candidato) candidato = generarCombinacion(stats);
+    if (candidato) {
+      resultados.push(candidato);
+      candidato.numeros.forEach(x => usados.add(x));
+    }
+  }
+
+  return resultados.sort((a,b) => b.score - a.score);
+}
+
+// ── MÚLTIPLE 6 y 7 ──
+function generarMultiple(n, stats) {
+  const pool = TODOS.sort((a,b) => stats.pesos[b] - stats.pesos[a]).slice(0, n+5);
+  let mejorSel = null, mejorScore = -1;
+
+  for (let i = 0; i < 60; i++) {
+    const sel = [];
+    const p2 = [...pool];
+    while (sel.length < n && p2.length) {
+      const idx = Math.floor(Math.random() * p2.length);
+      sel.push(p2.splice(idx, 1)[0]);
+    }
+
+    const combis = combinacionesDe5(sel);
+    const scorePromedio = combis.reduce((a,c) => a + puntuarCombo(c, stats).score, 0) / combis.length;
+    if (scorePromedio > mejorScore) { mejorScore = scorePromedio; mejorSel = sel; }
+  }
+
+  const selFinal = [...mejorSel].sort((a,b)=>a-b);
+  const combis = combinacionesDe5(selFinal).map(c => [...c].sort((a,b)=>a-b));
+  return { numeros: selFinal, combinaciones: combis, scorePromedio: mejorScore };
+}
+
+function combinacionesDe5(arr) {
+  const result = [];
+  const n = arr.length;
+  for (let a=0; a<n-4; a++)
+    for (let b=a+1; b<n-3; b++)
+      for (let c=b+1; c<n-2; c++)
+        for (let d=c+1; d<n-1; d++)
+          for (let e=d+1; e<n; e++)
+            result.push([arr[a],arr[b],arr[c],arr[d],arr[e]]);
+  return result;
+}
+
+// ── ANÁLISIS DE SORTEO ──
+function analizarSorteo(tipo, stats) {
+  const todos = getSorteosCombinados();
+  const datos = todos.filter(s => s.t === tipo);
+  if (datos.length < 3) return 50;
+
+  const freq = {};
+  TODOS.forEach(n => freq[n] = 0);
+  datos.forEach(s => s.n.forEach(n => freq[n]++));
+
+  const esperado = datos.length * 5 / 28;
+  const varianza = TODOS.reduce((a,n) => a + (freq[n]/datos.length - 5/28)**2, 0);
+
+  let score = 50;
+  const vencSet = new Set(stats.vencidos.slice(0,6));
+  const recientes = new Set(datos.slice(0,8).flatMap(s=>s.n));
+  const overlap = [...vencSet].filter(n => recientes.has(n)).length;
+  score += overlap * 5;
+  score -= varianza * 400;
+
+  return Math.max(10, Math.min(95, Math.round(score)));
+}
+
+// ── TIPO DE BOLA ──
+function tipoBola(n, stats, esExtra=false) {
+  if (esExtra) return 'bola-extra';
+  if (stats.vencidos.slice(0,6).includes(n)) return 'bola-vencida';
+  if (stats.calientes.slice(0,8).includes(n)) return 'bola-caliente';
+  if (stats.frios.slice(0,6).includes(n)) return 'bola-fria';
+  return 'bola-normal';
+}
+
+// ── RENDERIZADO ──
+function renderBola(n, tipo, size=48) {
+  return `<div class="bola ${tipo}" style="width:${size}px;height:${size}px">${n.toString().padStart(2,'0')}</div>`;
+}
+
+function renderPredicciones(predicciones, stats) {
+  const cont = document.getElementById('resultados');
+  cont.innerHTML = '';
+
+  predicciones.forEach((pred, idx) => {
+    const div = document.createElement('div');
+    div.className = 'pred-card';
+    div.style.transitionDelay = `${idx * 0.08}s`;
+
+    const bolas = pred.numeros.map(n =>
+      renderBola(n, tipoBola(n, stats))
+    ).join('');
+
+    const pips = Array.from({length:5}, (_,i) =>
+      `<div class="conf-pip ${i < pred.nivel ? 'on' : ''}"></div>`
+    ).join('');
+
+    div.innerHTML = `
+      <div class="pred-num-orden">${idx+1}</div>
+      <div class="pred-bolas">${bolas}</div>
+      <div class="pred-meta">
+        <div class="pred-score-label">Score</div>
+        <div class="pred-score-val">${pred.score}</div>
+        <div class="pred-confianza">${pips}</div>
+      </div>
+      <div class="pred-razon">${pred.razon.charAt(0).toUpperCase() + pred.razon.slice(1)}</div>
+    `;
+
+    cont.appendChild(div);
+    requestAnimationFrame(() => {
+      setTimeout(() => div.classList.add('visible'), 50 + idx * 80);
+    });
+  });
+}
+
+function renderMultiple(resultado, stats, n) {
+  const cont = document.getElementById('resultados');
+  cont.innerHTML = '';
+  document.getElementById('leyMulti').style.display = 'flex';
+
+  const extraNums = new Set(resultado.numeros);
+  const costo = resultado.combinaciones.length * 10;
+
+  const div = document.createElement('div');
+  div.className = 'pred-card visible';
+
+  const bolasPrincipales = resultado.numeros.map(n2 => renderBola(n2, 'bola-extra')).join('');
+
+  div.innerHTML = `
+    <div class="pred-num-orden" style="font-size:1.5rem;color:var(--verde)">${n}</div>
+    <div>
+      <div style="font-size:0.55rem;letter-spacing:0.2em;color:var(--verde);text-transform:uppercase;margin-bottom:0.6rem">
+        Números seleccionados (Múltiple ${n})
+      </div>
+      <div class="pred-bolas">${bolasPrincipales}</div>
+    </div>
+    <div class="pred-meta">
+      <div class="pred-score-label">Score Prom.</div>
+      <div class="pred-score-val">${Math.round(resultado.scorePromedio)}</div>
+    </div>
+    <div class="pred-razon">
+      Genera ${resultado.combinaciones.length} combinaciones de 5 números. Costo total: $${costo} MXN.
+      Si cualquier quinteto de estos ${n} números sale, ¡ganas el premio mayor!
+    </div>
+  `;
+  cont.appendChild(div);
+
+  // Banner costo
+  const banner = document.createElement('div');
+  banner.className = 'costo-banner';
+  banner.innerHTML = `
+    <div>
+      <div class="costo-label">Combinaciones generadas</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--blanco)">${resultado.combinaciones.length} boletos</div>
+    </div>
+    <div>
+      <div class="costo-label">Inversión total</div>
+      <div class="costo-val">$${costo} MXN</div>
+    </div>
+    <div>
+      <div class="costo-label">Score promedio</div>
+      <div class="costo-val">${Math.round(resultado.scorePromedio)}/100</div>
+    </div>
+  `;
+  cont.appendChild(banner);
+
+  // Grid de combinaciones
+  const grid = document.createElement('div');
+  grid.className = 'multi-grid';
+
+  resultado.combinaciones.forEach((combo, i) => {
+    const item = document.createElement('div');
+    item.className = 'multi-combo';
+    const miniBolas = combo.map(nx =>
+      `<div class="mini-bola">${nx.toString().padStart(2,'0')}</div>`
+    ).join('');
+    item.innerHTML = `<span style="color:var(--gris-claro);font-size:0.55rem;min-width:16px">${i+1}.</span>${miniBolas}`;
+    grid.appendChild(item);
+  });
+
+  cont.appendChild(grid);
+}
+
+function renderEstadisticas(stats) {
+  // Calientes
+  document.getElementById('statsCalientes').innerHTML =
+    stats.calientes.slice(0,10).map(n =>
+      `<span class="stat-chip chip-caliente">${n.toString().padStart(2,'0')}</span>`
+    ).join('');
+
+  // Fríos
+  document.getElementById('statsFrios').innerHTML =
+    stats.frios.slice(0,10).map(n =>
+      `<span class="stat-chip chip-frio">${n.toString().padStart(2,'0')}</span>`
+    ).join('');
+
+  // Vencidos
+  document.getElementById('statsVencidos').innerHTML =
+    stats.vencidos.length
+      ? stats.vencidos.slice(0,8).map(n =>
+          `<span class="stat-chip chip-vencido">${n.toString().padStart(2,'0')} <span style="font-size:0.45rem;font-family:'DM Mono',monospace">(${stats.cronometro[n]}s)</span></span>`
+        ).join('')
+      : `<span style="font-size:0.7rem;color:var(--gris-claro);font-family:'Crimson Pro',serif;font-style:italic">Sin números vencidos actualmente</span>`;
+
+  // Pie chart en lugar de barras
+  renderPieChart(stats);
+}
+
+function renderRecomendacion(scoreTres, scoreClasico) {
+  const mejor = scoreTres >= scoreClasico ? 'tres' : 'clasico';
+  const maxScore = Math.max(scoreTres, scoreClasico);
+  const jugar = maxScore >= 45;
+
+  document.getElementById('scoreTres').textContent = scoreTres;
+  document.getElementById('scoreClasico').textContent = scoreClasico;
+
+  const color3 = scoreTres >= scoreClasico ? 'var(--verde)' : 'var(--gris-claro)';
+  const colorC = scoreClasico >= scoreTres ? 'var(--verde)' : 'var(--gris-claro)';
+  document.getElementById('scoreTres').style.color = color3;
+  document.getElementById('scoreClasico').style.color = colorC;
+
+  if (!jugar) {
+    document.getElementById('recEmoji').textContent = '⛔';
+    document.getElementById('recEmoji').className = 'rec-badge rojo';
+    document.getElementById('recTitulo').textContent = 'No se recomienda participar hoy';
+    document.getElementById('recSub').textContent = 'Ambos sorteos presentan condiciones estadísticas desfavorables. Considera esperar mañana.';
+  } else if (mejor === 'tres') {
+    document.getElementById('recEmoji').textContent = '🕒';
+    document.getElementById('recEmoji').className = 'rec-badge verde';
+    document.getElementById('recTitulo').textContent = 'Jugar Chispazo de las Tres — 15:00 hrs';
+    document.getElementById('recSub').textContent = `Score ${scoreTres}/100. Mayor presión estadística en el sorteo vespertino. Los números vencidos favorecen esta ventana.`;
+  } else {
+    document.getElementById('recEmoji').textContent = '🌙';
+    document.getElementById('recEmoji').className = 'rec-badge verde';
+    document.getElementById('recTitulo').textContent = 'Jugar Chispazo Clásico — 21:00 hrs';
+    document.getElementById('recSub').textContent = `Score ${scoreClasico}/100. El análisis favorece el sorteo nocturno. Mejor distribución de números calientes.`;
+  }
+}
+
+// ── AUTOAPRENDIZAJE: SORTEOS MANUALES (localStorage) ──
+
+const LS_KEY = 'chispazo_manuales';
+
+function cargarManuales() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+  } catch { return []; }
+}
+
+function guardarManuales(lista) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(lista)); } catch {}
+}
+
+function getSorteosCombinados() {
+  // Manuales van al principio (son más recientes generalmente)
+  const manuales = cargarManuales().map(m => ({ ...m, manual: true }));
+  return [...manuales, ...HISTORICO];
+}
+
+// ── MEJOR MOMENTO PARA JUGAR ──
+function calcularMejorMomento() {
+  const todos   = getSorteosCombinados();
+  const stats   = calcularEstadisticasCombinadas();
+  const TODOS   = Array.from({length:28}, (_,i) => i+1);
+  const N       = todos.length;
+  const CICLO   = 28 / 5; // ~5.6 sorteos por número
+
+  // ── INDICADOR 1: Presión de vencidos ──
+  // Cuántos números llevan más de 1.5x su ciclo sin aparecer
+  const ausencias = {};
+  TODOS.forEach(n => {
+    let last = -1;
+    todos.forEach((s, i) => { if (s.n.includes(n)) last = i; });
+    ausencias[n] = last === -1 ? N : last;
+  });
+  const vencidos15 = TODOS.filter(n => ausencias[n] >= CICLO * 1.5).length;
+  const vencidos20 = TODOS.filter(n => ausencias[n] >= CICLO * 2.0).length;
+  const scoreVencidos = Math.min(100, (vencidos15 * 8) + (vencidos20 * 12));
+
+  // ── INDICADOR 2: Entropía de los últimos 10 sorteos ──
+  // Qué tan dispersos son los números (alta dispersión = más predecible)
+  const ultimos10 = todos.slice(0, 10);
+  const numsRecientes = new Set(ultimos10.flatMap(s => s.n));
+  const repetidos = ultimos10.flatMap(s => s.n).length - numsRecientes.size;
+  // Pocas repeticiones = alta entropía = buena señal
+  const scoreEntropia = Math.max(0, Math.min(100, 100 - (repetidos * 8)));
+
+  // ── INDICADOR 3: Ciclo global (qué tan "maduro" está el sistema) ──
+  // Suma de ausencias normalizadas de todos los números
+  const presionTotal = TODOS.reduce((sum, n) => sum + Math.max(0, ausencias[n] - CICLO), 0);
+  const scoreCiclo   = Math.min(100, presionTotal * 1.2);
+
+  // ── INDICADOR 4: Día de la semana ──
+  // Analizar históricamente qué días tienen más vencidos acumulados
+  const mexicoNow = new Date(Date.now() + (-6 * 60 - new Date().getTimezoneOffset()) * 60000);
+  const diaSemana = mexicoNow.getDay(); // 0=dom, 1=lun...
+  const nombresDia = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  // Calcular score promedio de predicciones por día histórico
+  const scoresPorDia = {};
+  todos.forEach(s => {
+    const d = new Date(s.f + 'T12:00:00').getDay();
+    if (!scoresPorDia[d]) scoresPorDia[d] = [];
+    // Puntuar la combinación del sorteo
+    const sc = puntuarCombo(s.n, stats);
+    scoresPorDia[d].push(sc);
+  });
+  const promediosDia = {};
+  Object.entries(scoresPorDia).forEach(([d, scores]) => {
+    promediosDia[d] = scores.reduce((a,b) => a+b, 0) / scores.length;
+  });
+  const promedioDiaHoy = promediosDia[diaSemana] || 50;
+  const scoreDia = Math.min(100, promedioDiaHoy);
+
+  // ── SCORE GLOBAL ──
+  const scoreGlobal = Math.round(
+    scoreVencidos * 0.35 +
+    scoreEntropia * 0.25 +
+    scoreCiclo    * 0.25 +
+    scoreDia      * 0.15
+  );
+
+  // ── RENDERIZAR ──
+  renderMomentoGauge(scoreGlobal);
+
+  const titulo  = document.getElementById('momentoTitulo');
+  const sub     = document.getElementById('momentoSub');
+  const emoji   = document.getElementById('momentoEmoji');
+  const detalle = document.getElementById('momentoDetalle');
+
+  if (scoreGlobal >= 72) {
+    titulo.textContent = 'MOMENTO ÓPTIMO';
+    titulo.style.color = '#3aad6e';
+    emoji.textContent  = '🎯';
+    sub.textContent    = `Presión estadística alta — Score ${scoreGlobal}/100`;
+    detalle.textContent = `${vencidos20} número${vencidos20!==1?'s':''} llevan más del doble de su ciclo sin aparecer. La entropía reciente es ${scoreEntropia>60?'alta':'moderada'} y el patrón del ${nombresDia[diaSemana]} es históricamente favorable.`;
+  } else if (scoreGlobal >= 50) {
+    titulo.textContent = 'MOMENTO REGULAR';
+    titulo.style.color = '#c9a84c';
+    emoji.textContent  = '⚡';
+    sub.textContent    = `Condiciones moderadas — Score ${scoreGlobal}/100`;
+    detalle.textContent = `El sistema tiene presión media. Hay ${vencidos15} número${vencidos15!==1?'s':''} con ciclo vencido. Si vas a jugar, usa predicciones con score alto (>70 pts).`;
+  } else {
+    titulo.textContent = 'MOMENTO BAJO';
+    titulo.style.color = '#d64e3a';
+    emoji.textContent  = '⏳';
+    sub.textContent    = `Poca presión estadística — Score ${scoreGlobal}/100`;
+    detalle.textContent = `Los números se han distribuido uniformemente en los sorteos recientes. Estadísticamente conviene esperar a que se acumulen más vencidos.`;
+  }
+
+  // Indicadores individuales
+  function setInd(idDot, idVal, valor, umbralVerde, umbralAmarillo, texto) {
+    const dot = document.querySelector(`#${idDot} .momento-ind-dot`);
+    const val = document.getElementById(idVal);
+    if (!dot || !val) return;
+    val.textContent = texto;
+    dot.className = 'momento-ind-dot ' + (valor >= umbralVerde ? 'dot-verde' : valor >= umbralAmarillo ? 'dot-amarillo' : 'dot-rojo');
+  }
+
+  setInd('indVencidos', 'indVencidosVal', scoreVencidos, 60, 30,
+    `${vencidos15} nums (+1.5×)`);
+  setInd('indEntropía', 'indEntropiaVal', scoreEntropia, 60, 35,
+    scoreEntropia > 60 ? 'Alta' : scoreEntropia > 35 ? 'Media' : 'Baja');
+  setInd('indCiclo',   'indCicloVal',    scoreCiclo,    60, 30,
+    `${Math.round(presionTotal)} pts`);
+  setInd('indDia',     'indDiaVal',      scoreDia,      60, 40,
+    nombresDia[diaSemana]);
+}
+
+function renderMomentoGauge(score) {
+  const canvas = document.getElementById('momentoGauge');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H - 8;
+  const r  = Math.min(W, H * 2) / 2 - 6;
+
+  // Arco fondo
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, 0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Arco color por score
+  const color = score >= 72 ? '#3aad6e' : score >= 50 ? '#c9a84c' : '#d64e3a';
+  const angle = Math.PI + (score / 100) * Math.PI;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, angle);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 10;
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 10;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Aguja
+  const needleAngle = Math.PI + (score / 100) * Math.PI;
+  const nx = cx + Math.cos(needleAngle) * (r - 4);
+  const ny = cy + Math.sin(needleAngle) * (r - 4);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(nx, ny);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Centro
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // Score texto
+  ctx.fillStyle = color;
+  ctx.font = `bold 18px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(score, cx, cy - 4);
+}
+
+// ── TOGGLE METODOLOGÍA ──
+function toggleMetodo() {
+  const body = document.getElementById('metodoBody');
+  const btn  = document.getElementById('metodoToggleBtn');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? 'Cerrar ▴' : 'Abrir ▾';
+}
+
+// ── PIE CHART INTERACTIVO ──
+let _pieSegmentos = []; // guardamos segmentos para hit-test
+
+function renderPieChart(stats) {
+  const canvas = document.getElementById('pieChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+  const rOuter = Math.min(W,H)/2 - 28; // margen amplio para glow + expansión
+  const rInner = rOuter * 0.40;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Top 10 por frecuencia
+  const top10 = Object.entries(stats.freq)
+    .sort((a,b) => b[1]-a[1]).slice(0,10);
+  const maxFreq = +top10[0][1];
+  const minFreq = +top10[9][1];
+  const totalApariciones = top10.reduce((s,[,f]) => s + +f, 0);
+
+  // Color base dorado → intensidad por frecuencia relativa
+  // Más frecuente = dorado brillante, menos frecuente = dorado oscuro
+  function colorPorIntensidad(freq, idx) {
+    // Intensidad 0.0 (menos frecuente) → 1.0 (más frecuente)
+    const t = maxFreq === minFreq ? 1 : (freq - minFreq) / (maxFreq - minFreq);
+    // Paleta: mezcla de dorado oscuro → dorado brillante con toque diferenciador por posición
+    const hueShift = idx * 4; // leve variación de tono por posición
+    const h = 42 + hueShift;
+    const s = Math.round(55 + t * 40); // 55-95%
+    const l = Math.round(28 + t * 38); // 28-66%
+    return { base: `hsl(${h},${s}%,${l}%)`, bright: `hsl(${h},${s}%,${Math.min(l+20,88)}%)` };
+  }
+
+  let angulo = -Math.PI / 2;
+  _pieSegmentos = [];
+
+  top10.forEach(([num, freq], i) => {
+    const f = +freq;
+    const slice = (f / totalApariciones) * Math.PI * 2;
+    const colors = colorPorIntensidad(f, i);
+
+    // Gradiente radial por segmento
+    const midAngle = angulo + slice / 2;
+    const gx = cx + Math.cos(midAngle) * rOuter * 0.6;
+    const gy = cy + Math.sin(midAngle) * rOuter * 0.6;
+    const grad = ctx.createRadialGradient(cx, cy, rInner, gx, gy, rOuter);
+    grad.addColorStop(0, colors.bright);
+    grad.addColorStop(1, colors.base);
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, rOuter, angulo, angulo + slice);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Borde separador fino
+    ctx.strokeStyle = '#080808';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Número dentro del segmento (si es grande enough)
+    if (slice > 0.35) {
+      const labelR = (rInner + rOuter) / 2;
+      const lx = cx + Math.cos(midAngle) * labelR;
+      const ly = cy + Math.sin(midAngle) * labelR;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.font = `bold ${Math.round(rOuter * 0.11)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(parseInt(num).toString().padStart(2,'0'), lx, ly);
+      ctx.restore();
+    }
+
+    _pieSegmentos.push({
+      num: parseInt(num), freq: f, angulo, slice,
+      colors, midAngle,
+      pct: ((f / totalApariciones) * 100).toFixed(1)
+    });
+    angulo += slice;
+  });
+
+  // Donut hole con fondo oscuro
+  ctx.beginPath();
+  ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fill();
+
+  // Texto centro default
+  drawCentro(ctx, cx, cy, rInner, null);
+
+  // Actualizar contador
+  const el = document.getElementById('freqSorteoCount');
+  if (el) el.textContent = stats.totalSorteos || '—';
+
+  // Registrar eventos hover (una sola vez)
+  if (!canvas._hoverReady) {
+    canvas._hoverReady = true;
+
+    canvas.addEventListener('mousemove', function(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width  / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top)  * scaleY;
+      const dx = mx - cx, dy = my - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const tooltip = document.getElementById('pieTooltip');
+
+      if (dist < rInner || dist > rOuter) {
+        // Fuera del donut → limpiar
+        tooltip.style.display = 'none';
+        redrawPie(ctx, cx, cy, rOuter, rInner, -1);
+        drawCentro(ctx, cx, cy, rInner, null);
+        return;
+      }
+
+      let angle = Math.atan2(dy, dx);
+      if (angle < -Math.PI/2) angle += Math.PI * 2;
+
+      const hit = _pieSegmentos.findIndex(s => {
+        let start = s.angulo;
+        let end   = s.angulo + s.slice;
+        // Normalizar ángulo del mouse al mismo espacio
+        let a = angle;
+        // Ajustar si el segmento cruza -PI/2
+        if (start < -Math.PI/2) { start += Math.PI*2; end += Math.PI*2; }
+        if (a < start) a += Math.PI*2;
+        return a >= start && a <= end;
+      });
+
+      if (hit >= 0) {
+        const seg = _pieSegmentos[hit];
+        redrawPie(ctx, cx, cy, rOuter, rInner, hit);
+        drawCentro(ctx, cx, cy, rInner, seg);
+
+        // Posicionar tooltip relativo al canvas container
+        const containerRect = canvas.parentElement.getBoundingClientRect();
+        const tx = e.clientX - containerRect.left;
+        const ty = e.clientY - containerRect.top;
+        tooltip.style.left = `${tx + 14}px`;
+        tooltip.style.top  = `${ty - 20}px`;
+        tooltip.style.display = 'block';
+        tooltip.style.borderColor = seg.colors.bright;
+        document.getElementById('ttNum').style.color  = seg.colors.bright;
+        document.getElementById('ttNum').textContent  = seg.num.toString().padStart(2,'0');
+        document.getElementById('ttFreq').textContent = `${seg.freq} apariciones`;
+        document.getElementById('ttPct').textContent  = `${seg.pct}% del top 10`;
+      } else {
+        tooltip.style.display = 'none';
+        redrawPie(ctx, cx, cy, rOuter, rInner, -1);
+        drawCentro(ctx, cx, cy, rInner, null);
+      }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+      document.getElementById('pieTooltip').style.display = 'none';
+      redrawPie(ctx, cx, cy, rOuter, rInner, -1);
+      drawCentro(ctx, cx, cy, rInner, null);
+    });
+  }
+}
+
+function redrawPie(ctx, cx, cy, rOuter, rInner, hitIdx) {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  _pieSegmentos.forEach((seg, i) => {
+    const isHover = i === hitIdx;
+    const expandR = isHover ? rOuter + 8 : rOuter;
+
+    const grad = ctx.createRadialGradient(cx, cy, rInner,
+      cx + Math.cos(seg.midAngle) * expandR * 0.6,
+      cy + Math.sin(seg.midAngle) * expandR * 0.6,
+      expandR);
+    grad.addColorStop(0, isHover ? '#fff8e0' : seg.colors.bright);
+    grad.addColorStop(1, isHover ? seg.colors.bright : seg.colors.base);
+
+    ctx.save();
+    if (isHover) {
+      ctx.shadowColor = seg.colors.bright;
+      ctx.shadowBlur  = 22;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, expandR, seg.angulo, seg.angulo + seg.slice);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+
+    // Borde sin shadow
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, expandR, seg.angulo, seg.angulo + seg.slice);
+    ctx.closePath();
+    ctx.strokeStyle = '#080808';
+    ctx.lineWidth = isHover ? 2 : 1.5;
+    ctx.stroke();
+
+    // Número dentro
+    if (seg.slice > 0.35) {
+      const labelR = (rInner + rOuter) / 2;
+      const lx = cx + Math.cos(seg.midAngle) * labelR;
+      const ly = cy + Math.sin(seg.midAngle) * labelR;
+      ctx.save();
+      ctx.fillStyle = isHover ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.6)';
+      ctx.font = `bold ${Math.round(rOuter * (isHover ? 0.13 : 0.11))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(seg.num.toString().padStart(2,'0'), lx, ly);
+      ctx.restore();
+    }
+  });
+
+  // Donut hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fill();
+}
+
+function drawCentro(ctx, cx, cy, rInner, seg) {
+  // Limpiar solo el centro
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, rInner - 1, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fill();
+  ctx.restore();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (seg) {
+    // Mostrar número hover en centro
+    ctx.fillStyle = seg.colors.bright;
+    ctx.font = `bold ${Math.round(rInner * 0.70)}px sans-serif`;
+    ctx.fillText(seg.num.toString().padStart(2,'0'), cx, cy - rInner*0.1);
+    ctx.fillStyle = '#888';
+    ctx.font = `${Math.round(rInner * 0.22)}px sans-serif`;
+    ctx.fillText(`${seg.freq}×`, cx, cy + rInner*0.38);
+  } else {
+    // Estado default
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = `bold ${Math.round(rInner * 0.30)}px sans-serif`;
+    ctx.fillText('TOP', cx, cy - rInner*0.15);
+    ctx.fillStyle = '#f5f0e8';
+    ctx.font = `bold ${Math.round(rInner * 0.48)}px sans-serif`;
+    ctx.fillText('10', cx, cy + rInner*0.22);
+  }
+}
+
+// ── TOGGLE INGRESO ──
+function toggleIngreso() {
+  const body = document.getElementById('ingresoBody');
+  const btn  = document.getElementById('toggleBtn');
+  const open = body.classList.toggle('open');
+  btn.textContent = open ? 'Cerrar ▴' : 'Abrir ▾';
+  if (open) {
+    // Poner fecha de hoy por defecto
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('ingresoFecha').value = hoy;
+    renderHistorialManual();
+  }
+}
+
+function validarNum(input) {
+  const v = parseInt(input.value);
+  if (!input.value) { input.className = 'num-input'; return; }
+  if (v >= 1 && v <= 28) {
+    input.className = 'num-input valido';
+  } else {
+    input.className = 'num-input invalido';
+  }
+}
+
+function agregarSorteo() {
+  const fecha = document.getElementById('ingresoFecha').value;
+  const tipo  = document.getElementById('ingresoTipo').value;
+  const ids   = ['n1','n2','n3','n4','n5'];
+  const fb    = document.getElementById('ingresoFeedback');
+
+  if (!fecha) {
+    fb.innerHTML = '<span class="feedback-err">⚠ Selecciona una fecha</span>';
+    return;
+  }
+
+  const nums = ids.map(id => parseInt(document.getElementById(id).value)).filter(n => !isNaN(n));
+
+  if (nums.length !== 5) {
+    fb.innerHTML = '<span class="feedback-err">⚠ Ingresa los 5 números</span>';
+    return;
+  }
+  if (nums.some(n => n < 1 || n > 28)) {
+    fb.innerHTML = '<span class="feedback-err">⚠ Los números deben estar entre 1 y 28</span>';
+    return;
+  }
+  if (new Set(nums).size !== 5) {
+    fb.innerHTML = '<span class="feedback-err">⚠ Los 5 números deben ser diferentes</span>';
+    return;
+  }
+
+  const manuales = cargarManuales();
+
+  // Verificar duplicado
+  const existe = manuales.some(m => m.f === fecha && m.t === tipo);
+  if (existe) {
+    fb.innerHTML = '<span class="feedback-err">⚠ Ya existe un sorteo con esa fecha y tipo</span>';
+    return;
+  }
+
+  manuales.unshift({ f: fecha, t: tipo, n: nums.sort((a,b)=>a-b) });
+  guardarManuales(manuales);
+
+  // Limpiar inputs
+  ids.forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).className = 'num-input'; });
+  fb.innerHTML = `<span class="feedback-ok">✓ Sorteo ${fecha} (${tipo}) agregado. El sistema ahora lo incluye en su análisis.</span>`;
+
+  renderHistorialManual();
+  actualizarUltimoSorteo();
+  renderEstadisticas(calcularEstadisticasCombinadas());
+  calcularMejorMomento();
+
+  setTimeout(() => fb.innerHTML = '', 4000);
+}
+
+function borrarManual(idx) {
+  const manuales = cargarManuales();
+  manuales.splice(idx, 1);
+  guardarManuales(manuales);
+  renderHistorialManual();
+  actualizarUltimoSorteo();
+  renderEstadisticas(calcularEstadisticasCombinadas());
+  calcularMejorMomento();
+}
+
+function renderHistorialManual() {
+  const manuales = cargarManuales();
+  const cont = document.getElementById('historialManual');
+  const lista = document.getElementById('historialLista');
+
+  if (manuales.length === 0) { cont.style.display = 'none'; return; }
+  cont.style.display = 'block';
+
+  lista.innerHTML = manuales.slice(0, 15).map((m, i) => `
+    <div class="hist-row">
+      <span class="hist-fecha">${m.f}</span>
+      <span class="hist-tipo">${m.t === 'clasico' ? 'Clásico' : 'Las Tres'}</span>
+      <span class="hist-nums">${m.n.map(n => `<span class="hist-n">${n.toString().padStart(2,'0')}</span>`).join('<span style="color:var(--gris-med);margin:0 1px">·</span>')}</span>
+      <button class="btn-borrar-hist" onclick="borrarManual(${i})" title="Eliminar">✕</button>
+    </div>
+  `).join('');
+}
+
+// ── ACTUALIZAR PANEL ÚLTIMO SORTEO ──
+function actualizarUltimoSorteo() {
+  const todos = getSorteosCombinados();
+  const manuales = cargarManuales();
+
+  if (todos.length === 0) return;
+
+  // Ordenar por fecha desc
+  const sorted = [...todos].sort((a,b) => {
+    const da = new Date(a.f), db = new Date(b.f);
+    if (db - da !== 0) return db - da;
+    return (b.t === 'clasico' ? 1 : 0) - (a.t === 'clasico' ? 1 : 0);
+  });
+
+  const ultimo = sorted[0];
+  const primero = sorted[sorted.length - 1];
+
+  // Fecha formateada
+  const fechaOpts = { day: '2-digit', month: 'long', year: 'numeric' };
+  const fechaStr = new Date(ultimo.f + 'T12:00:00').toLocaleDateString('es-MX', fechaOpts);
+  const tipoStr  = ultimo.t === 'clasico' ? 'Chispazo Clásico 21:00' : 'Chispazo de las Tres 15:00';
+  const concursoStr = ultimo.c ? `#${ultimo.c}` : '';
+
+  document.getElementById('ultimoFecha').textContent =
+    `Último sorteo analizado — ${fechaStr} · ${tipoStr}`;
+
+  // Número de concurso destacado
+  const concursoEl = document.getElementById('ultimoConcursoNum');
+  if (concursoEl) concursoEl.textContent = concursoStr || '—';
+
+  // Bolas del último sorteo
+  const stats = calcularEstadisticasCombinadas();
+  document.getElementById('ultimoBolas').innerHTML =
+    ultimo.n.map(n => `
+      <div class="bola ${tipoBola(n, stats)}" style="width:40px;height:40px;font-size:0.95rem;">${n.toString().padStart(2,'0')}</div>
+    `).join('') +
+    `<span class="ultimo-tipo-badge">${ultimo.manual ? '★ Ingresado' : 'Histórico'}</span>`;
+
+  // Totales
+  document.getElementById('totalSorteos').textContent = todos.length;
+
+  // Rango
+  const rangoEl = document.getElementById('rangoFechas');
+  if (rangoEl) rangoEl.textContent = `${primero.f.slice(0,7)} → ${ultimo.f.slice(0,7)}`;
+
+  document.getElementById('tipoUltimo').textContent =
+    ultimo.c ? `Concurso #${ultimo.c}` : `hasta ${ultimo.f}`;
+
+  // Badge manuales
+  const badgeManuales = document.getElementById('sorteosManuales');
+  const cantM = document.getElementById('cantManuales');
+  if (manuales.length > 0) {
+    badgeManuales.style.display = 'inline-flex';
+    cantM.textContent = manuales.length;
+  } else {
+    badgeManuales.style.display = 'none';
+  }
+}
+
+// ── ESTADÍSTICAS COMBINADAS (histórico + manuales) ──
+function calcularEstadisticasCombinadas() {
+  const todos = getSorteosCombinados();
+
+  const freq = {};
+  TODOS.forEach(n => freq[n] = 0);
+  todos.forEach(s => s.n.forEach(n => freq[n]++));
+
+  const totalSorteos = todos.length;
+  const esperado = totalSorteos * 5 / 28;
+
+  const calientes = Object.entries(freq)
+    .filter(([n,f]) => f > esperado)
+    .sort((a,b) => b[1]-a[1])
+    .map(([n]) => parseInt(n));
+
+  const frios = Object.entries(freq)
+    .filter(([n,f]) => f <= esperado * 0.7)
+    .sort((a,b) => a[1]-b[1])
+    .map(([n]) => parseInt(n));
+
+  const cronometro = {};
+  TODOS.forEach(n => {
+    const sortedByDate = [...todos].sort((a,b) => new Date(b.f)-new Date(a.f));
+    const idx = sortedByDate.findIndex(s => s.n.includes(n));
+    cronometro[n] = idx === -1 ? todos.length : idx;
+  });
+
+  const vencidos = TODOS
+    .filter(n => cronometro[n] >= 8)
+    .sort((a,b) => cronometro[b] - cronometro[a]);
+
+  const sumas = todos.map(s => s.n.reduce((a,b) => a+b, 0));
+  const sumaProm = sumas.reduce((a,b) => a+b, 0) / (sumas.length || 1);
+  const sumaDesv = sumas.length > 1
+    ? Math.sqrt(sumas.reduce((a,b) => a + (b-sumaProm)**2, 0) / sumas.length)
+    : 12;
+
+  const distPI = {};
+  todos.forEach(s => {
+    const p = s.n.filter(n => n%2===0).length;
+    distPI[p] = (distPI[p]||0) + 1;
+  });
+  const mejorPI = Object.entries(distPI).sort((a,b)=>b[1]-a[1])[0];
+
+  const pesos = {};
+  TODOS.forEach(n => {
+    const f = freq[n] / (totalSorteos * 5 / 28 + 1);
+    const ausencia = cronometro[n];
+    const presion = Math.min(ausencia / 5.6, 3.0);
+    pesos[n] = f * 0.6 + presion * 0.4;
+  });
+
+  return { freq, calientes, frios, vencidos, cronometro, sumaProm, sumaDesv, mejorPI: parseInt(mejorPI?.[0] || 2), pesos, totalSorteos };
+}
+
+// ── CONTROLES UI ──
+function selPred(n, btn) {
+  STATE.cantPred = n;
+  document.querySelectorAll('.pred-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function selEstrategia(tipo, btn) {
+  STATE.estrategia = tipo;
+  document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('leyMulti').style.display =
+    (tipo === 'multi6' || tipo === 'multi7') ? 'flex' : 'none';
+}
+
+async function generarPredicciones() {
+  const btn = document.getElementById('btnGenerar');
+  const overlay = document.getElementById('loadingOverlay');
+
+  btn.disabled = true;
+  overlay.classList.add('active');
+
+  await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+
+  const stats = calcularEstadisticasCombinadas();
+  const scoreTres    = analizarSorteo('tres', stats);
+  const scoreClasico = analizarSorteo('clasico', stats);
+
+  renderRecomendacion(scoreTres, scoreClasico);
+  renderEstadisticas(stats);
+  actualizarUltimoSorteo();
+
+  if (STATE.estrategia === 'multi6') {
+    const res = generarMultiple(6, stats);
+    renderMultiple(res, stats, 6);
+  } else if (STATE.estrategia === 'multi7') {
+    const res = generarMultiple(7, stats);
+    renderMultiple(res, stats, 7);
+  } else {
+    const preds = generarNPredicciones(STATE.cantPred, stats);
+    renderPredicciones(preds, stats);
+  }
+
+  overlay.classList.remove('active');
+  btn.disabled = false;
+
+  document.getElementById('resultados').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Inicializar al cargar
+window.addEventListener('DOMContentLoaded', () => {
+  const stats = calcularEstadisticasCombinadas();
+  renderEstadisticas(stats);
+  actualizarUltimoSorteo();
+  actualizarStatusBar();
+  calcularMejorMomento();
+  document.getElementById('ingresoFecha').value = new Date().toISOString().split('T')[0];
+  setInterval(actualizarStatusBar, 60000);
+});
+
+// ── BARRA DE ESTADO ──
+function actualizarStatusBar() {
+  const todos = getSorteosCombinados();
+  if (!todos.length) return;
+
+  // Encontrar el sorteo más reciente
+  const sorted = [...todos].sort((a, b) => {
+    if (b.f !== a.f) return b.f.localeCompare(a.f);
+    return (b.c || 0) - (a.c || 0);
+  });
+  const ultimo = sorted[0];
+
+  // Hora actual en México (UTC-6)
+  const ahora = new Date();
+  const mexicoOffset = -6 * 60;
+  const utc = ahora.getTime() + ahora.getTimezoneOffset() * 60000;
+  const mexicoNow = new Date(utc + mexicoOffset * 60000);
+
+  const hoyMexico = mexicoNow.toISOString().split('T')[0];
+  const horaMexico = mexicoNow.getHours() * 60 + mexicoNow.getMinutes(); // minutos desde medianoche
+  const TRES    = 15 * 60;  // 15:00
+  const CLASICO = 21 * 60;  // 21:00
+
+  // ── ESTADO DE FRESCURA ──
+  const dot   = document.getElementById('statusDot');
+  const texto = document.getElementById('statusTexto');
+
+  const ultimaFecha = ultimo.f;
+  const ultimoTipo  = ultimo.t;
+  const ultimoConcurso = ultimo.c ? `#${ultimo.c}` : '';
+
+  // Calcular cuántos sorteos pudieron haber ocurrido desde el último registrado
+  let sorteosFaltantes = 0;
+  let estadoColor = '';
+  let estadoMsg = '';
+
+  if (ultimaFecha === hoyMexico) {
+    if (ultimoTipo === 'clasico') {
+      estadoColor = '#3aad6e';
+      estadoMsg   = `✓ Al día — último registrado: ${ultimoConcurso} Clásico hoy`;
+    } else {
+      if (horaMexico >= CLASICO + 30) {
+        estadoColor = '#d64e3a';
+        estadoMsg   = `⚠ Falta Clásico de hoy ${ultimo.c ? '(#'+(ultimo.c+1)+')' : ''} — agrégalo via autoaprendizaje`;
+      } else {
+        estadoColor = '#3aad6e';
+        estadoMsg   = `✓ Al día — último registrado: ${ultimoConcurso} Las Tres hoy`;
+      }
+    }
+  } else {
+    const diasDiff = Math.floor((new Date(hoyMexico) - new Date(ultimaFecha)) / 86400000);
+    const sigConcurso = ultimo.c ? ` (siguiente esperado: #${ultimo.c + 1})` : '';
+    if (diasDiff === 1) {
+      if (horaMexico >= TRES + 30) {
+        estadoColor = '#d64e3a';
+        estadoMsg   = `⚠ Último: ${ultimoConcurso} — faltan sorteos de hoy${sigConcurso}`;
+      } else {
+        estadoColor = '#c9a84c';
+        estadoMsg   = `~ Último: ${ultimoConcurso} (ayer) — sorteo de hoy aún no ha ocurrido`;
+      }
+    } else {
+      estadoColor = '#d64e3a';
+      estadoMsg   = `⚠ Último: ${ultimoConcurso} — ${diasDiff} días sin actualizar${sigConcurso}`;
+    }
+  }
+
+  dot.style.background   = estadoColor;
+  dot.style.boxShadow    = `0 0 6px ${estadoColor}`;
+  texto.textContent      = estadoMsg;
+  texto.style.color      = estadoColor;
+
+  // ── PRÓXIMO SORTEO ──
+  const proximo = document.getElementById('proximoSorteo');
+  let proximoMsg = '';
+
+  if (horaMexico < TRES) {
+    const minFaltan = TRES - horaMexico;
+    const h = Math.floor(minFaltan / 60);
+    const m = minFaltan % 60;
+    proximoMsg = `Próximo: Las Tres en ${h > 0 ? h + 'h ' : ''}${m}min`;
+  } else if (horaMexico < CLASICO) {
+    const minFaltan = CLASICO - horaMexico;
+    const h = Math.floor(minFaltan / 60);
+    const m = minFaltan % 60;
+    proximoMsg = `Próximo: Clásico en ${h > 0 ? h + 'h ' : ''}${m}min`;
+  } else {
+    // Ya pasaron los dos sorteos del día
+    const minFaltanTres = (24 * 60 - horaMexico) + TRES;
+    const h = Math.floor(minFaltanTres / 60);
+    const m = minFaltanTres % 60;
+    proximoMsg = `Próximo: Las Tres mañana en ${h}h ${m}min`;
+  }
+
+  proximo.textContent = proximoMsg;
+}
+</script>
+</body>
+</html>
